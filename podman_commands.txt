@@ -1,0 +1,14 @@
+# Run the container with the default example.ca vars files
+# This uses the inventory, group_vars, and host_vars included with the projects
+# Bind your vault dir to the rhis vault directory
+
+podman run -it -v /home/parmstro/.ansible/vault:/rhis/vault:Z localhost/rhis-provisioner-9:latest
+
+# Run the container and bind your inventory, group_vars and host_vars to a project
+# Bind your vault dir to the rhis vault directory
+
+podman run -it -v /home/parmstro/.ansible/vault:/rhis/vault:Z \
+               -v /home/parmstro/rhis/rhis-builder-satellite/group_vars:/rhis/rhis-builder-satellite/group_vars:Z \
+               -v /home/parmstro/rhis/rhis-builder-satellite/host_vars:/rhis/rhis-builder-satellite/host_vars:Z \
+               -v /home/parmstro/rhis/rhis-builder-satellite/inventory:/rhis/rhis-builder-satellite/external_inventory:Z \
+               localhost/rhis-provisioner-9:latest

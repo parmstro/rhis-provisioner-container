@@ -1,3 +1,0 @@
-# rhis-builder-satellite 
-
-ansible-playbook -i external_inventory/inventory -u ansiblerunner --ask-pass --limit=sat_primary -e "vault_path=/rhis/vault/rhis_builder_vault.yml" -e "role_name=activation_keys" run_role.yml

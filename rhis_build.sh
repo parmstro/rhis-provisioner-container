@@ -8,7 +8,7 @@ cp rhis-builder_sample_commands.txt sources/rhis-builder_sample_commands.txt
 cp add_softlinks.yml sources/add_softlinks.yml
 cp remove_softlinks.yml sources/remove_softlinks.yml
 cp README.md sources/README.md
-podman login registry.redhat.io
+podman login registry.access.redhat.com
 
 if [ $1 == --no-cache ]; then
   podman build --no-cache -t rhis-provisioner-9:$version .

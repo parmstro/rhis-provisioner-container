@@ -1,8 +1,7 @@
 #!/bin/bash
 version=$(<version.txt)
-sudo dnf install ansible-core podman -y
+sudo dnf -y install ansible-core podman 
 cp ~/ansible.cfg sources/ansible.cfg
-cp ansible.cfg sources/ansible.cfg
 cp ansible.cfg.clean sources/ansible.cfg.clean
 cp podman_commands.txt sources/podman_commands.txt
 cp rhis-builder_sample_commands.txt sources/rhis-builder_sample_commands.txt 

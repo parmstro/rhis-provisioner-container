@@ -1,5 +1,7 @@
 #!/bin/bash
 version=$(<version.txt)
+podman login registry.redhat.io
+sudo dnf -y install ansible-core podman 
 cp ansible.cfg sources/ansible.cfg
 cp ansible.cfg.clean sources/ansible.cfg.clean
 cp podman_commands.txt sources/podman_commands.txt

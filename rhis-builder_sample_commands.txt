@@ -1,0 +1,21 @@
+# In general the ansible configuration is provided in lists for each of the roles in RHIS.
+# The elements should mirror the upstream modules that are used to build the RHIS
+
+# Eventually a full schema will be provided.
+# For now, see the example.ca host_vars and group_vars files
+
+# There is a main.yml file in each project. The main.yml file runs all roles and tasks in the proper order to ensure the proper initial build. 
+# After the initial build you may run indvidual roles and tasks as necessary for day 2 operations.
+# You may also run indvidual roles and tasks to customize your builds.
+# Please note that all roles check for the existence of the required configuration list needed.
+# If the configuration list is absent or is a zero element length list or dictionary, the role will be skipped
+
+# here is an example
+
+
+# rhis-builder-satellite 
+
+# Run a simple command to create or update the activation keys for the satellite organization
+# See the activation_keys.yml file under satellite.example.ca in the host_vars directory for the required yaml configuration format.
+
+ansible-playbook -i /rhis/vars/external_inventory/inventory -u ansiblerunner --ask-pass --limit=sat_primary -e "vault_dir=/rhis/vault/" -e "role_name=activation_keys" run_role.yml

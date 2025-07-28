@@ -1,0 +1,74 @@
+---
+
+- name: "Override Example Organization directories"
+  hosts: localhost
+  gather_facts: false
+  vars:
+    rhis_root_dir: "/rhis"
+    default_group_link: "/rhis/vars/group_vars"
+    default_host_link: "/rhis/vars/host_vars"
+    base_backup_path: "/rhis/vars/example.ca"
+    project_list:
+      - name: "rhis-builder-idm"
+      - name: "rhis-builder-satellite"
+      - name: "rhis-builder-pipelines"
+      - name: "rhis-builder-aap"
+      - name: "rhis-builder-day-2-ops"
+      - name: "rhis-builder-nbde"
+      - name: "rhis-builder-imagebuilder"
+      - name: "rhis-builder-yubi"
+      - name: "rhis-builder-convert2rhel"
+
+  tasks:
+
+    - name: "Copy example.ca to the group_vars directories for example.ca demo"
+      ansible.builtin.command: "cp -R {{ rhis_root_dir }}/{{ project.name }}/group_vars {{ base_backup_path }}/group_vars"
+      register: rm_result
+      changed_when: rm_result.rc == 0
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Delete the group_vars directories for example.ca demo"
+      ansible.builtin.command: "rm -rf {{ rhis_root_dir }}/{{ project.name }}/group_vars"
+      register: rm_result
+      changed_when: rm_result.rc == 0
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Link the group_vars directory to external"
+      ansible.builtin.file:
+        src: "{{ default_group_link }}"
+        dest: "{{ rhis_root_dir }}/{{ project.name }}/group_vars"
+        state: link
+        mode: "0644"
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Copy example.ca to the host_vars directories for example.ca demo"
+      ansible.builtin.command: "cp -R {{ rhis_root_dir }}/{{ project.name }}/host_vars {{ base_backup_path }}/host_vars"
+      register: rm_result
+      changed_when: rm_result.rc == 0
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Delete the host_vars directories for example.ca demo"
+      ansible.builtin.command: "rm -rf {{ rhis_root_dir }}/{{ project.name }}/host_vars"
+      register: rm_result
+      changed_when: rm_result.rc == 0
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Link the host_vars directory to external"
+      ansible.builtin.file:
+        src: "{{ default_host_link }}"
+        dest: "{{ rhis_root_dir }}/{{ project.name }}/host_vars"
+        state: link
+        mode: "0644"
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project

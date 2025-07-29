@@ -2,6 +2,7 @@ FROM registry.redhat.io/ubi9:latest
 LABEL maintainer="Paul Armstrong <github:@parmstro>"
 ENTRYPOINT ["/bin/bash", "-c", "echo '##########################################\nWelcome to the RHIS Provisioner container!' && exec /bin/bash"]
 # rpm requirements
+ARG ANSIBLE_VER
 RUN dnf -y install ansible-core git vim python3 python3-ipalib python3-jmespath python3-pip bind-utils
 # python requirements
 RUN python3 -m pip install fqdn
@@ -12,7 +13,7 @@ RUN mkdir -p /etc/ansible
 COPY sources/ansible.cfg /etc/ansible/ansible.cfg
 RUN ansible-galaxy collection install ansible.utils
 
-RUN if [[ ${ANSIBLE_VER} == "2.5" ]]; then \
+RUN if [[ $ANSIBLE_VER == "2.5" ]]; then \
     echo "Installing ansible.controller collection for AAP 2.5"; \
     ansible-galaxy collection install ansible.controller:">=4.6"; \
     else \

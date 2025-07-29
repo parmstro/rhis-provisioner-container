@@ -1,5 +1,6 @@
 #!/bin/bash
 
+ansiblever="2.4"
 secretsdir=""
 groupvarsdir=""
 hostvarsdir=""
@@ -7,6 +8,10 @@ inventorydir=""
 
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
+        -a|--ansible-ver)
+            ansiblever="$2"
+            shift # Shift past the value
+            ;;
         -s|--secrets-dir)
             secretsdir="$2"
             shift # Shift past the value
@@ -31,10 +36,14 @@ while [[ "$#" -gt 0 ]]; do
     shift # Shift past the option
 done
 
+echo
+echo "Launching the rhis-provisioner container with the following parameters:"
 echo "secrets-dir: $secretsdir"
 echo "group-vars-dir: $groupvarsdir"
 echo "host-vars-dir: $hostvarsdir"
 echo "group-vars-dir: $inventorydir"
+echo "ansible-ver: $ansiblever"
+echo
 
 if [[ $secretsdir == "" ]]; then
   echo "ERROR: A secrets directory is required - exiting."
@@ -44,7 +53,7 @@ fi
 if [[ $groupvarsdir == "" || $hostvarsdir == "" || $inventorydir == "" ]]; then
   echo "A custom configuration was not provided, using example.ca demo configuration."
   
-  podman run -it -v $secretsdir:/rhis/vars/vault:Z --hostname provisioner localhost/rhis-provisioner-9:latest
+  podman run -it -v $secretsdir:/rhis/vars/vault:Z --hostname provisioner localhost/rhis-provisioner-9-$ansiblever:latest
   
   # Quietly restore the SELinux context 
   restorecon -FRq $secretsdir
@@ -57,7 +66,7 @@ else
                -v $hostvarsdir:/rhis/vars/host_vars:Z \
                -v $inventorydir:/rhis/vars/external_inventory:Z \
                --hostname provisioner \
-               localhost/rhis-provisioner-9:latest
+               localhost/rhis-provisioner-9-$ansiblever:latest
   
   # Quietly restore the SELinux context 
   restorecon -FRq $secretsdir

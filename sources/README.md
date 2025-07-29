@@ -1,6 +1,9 @@
-rhis-provisioner Container build
+# rhis-provisioner Container build
+
+You should still download and run the code in the [rhis-builder-provisioner](https://github.com/parmstro/rhis-builder-provisioner) repo! The rhis-builder-provisioner repo will set up your provisioner node with this project as well as the example.ca configuration and inventory project - [rhis-builder-inventory](https://github.com/parmstro/rhis-builder-provisioner). 
 
 This project simplifies getting started with the Red Hat Infrastructure Standard and rhis-builder.
+
 The container is designed to have all the projects, dependencies and examples for building a Red Hat Infrastructure Standard environment.
 This current container build is defaults to include dependencies for AAP 2.4. If you require the container to build for AAP 2.5, pass the appropriate arg to the rhis_build.sh script.
 
@@ -25,13 +28,14 @@ To build the container to build and manage an RHIS enviroment that utilizes AAP 
 
 ~~~
 ./rhis_build.sh --no-cache --ansible-ver 2.5
+~~~
 
 Once the container is built, you can launch the container directly or use the script.
 Using the run_container.sh to launch the container is strongly recommended as it coordinates mounting your vault, group_vars, host_vars, and inventory directories for your custom build into the container and securing the files. 
 
 ### Running the run_container.sh script.
 
-The run_container.sh script takes 4 parameters, the path to directory that you store your ansible vault files and 3 additional parameters that provide the paths to your custom configuration. Our sample environment is based on the domain example.ca and is included inside the container.
+The run_container.sh script controls launching the container. The script takes 4 parameters, the path to directory that you store your ansible vault files and 3 additional parameters that provide the paths to your custom configuration. Our sample environment is based on the domain example.ca and is included inside the container. With these 4 parameters the script launches ***rhis-provisioner-9-2.4:latest*** which is suitable for building an RHIS environment that utilizes Ansible Automation Platform 2.4. To launch the container ***rhis-provisioner-9.2.5:latest*** pass **'--ansible-ver 2.5'** to the run_container.sh script.
 
 * **--secrets-dir**   
     * REQUIRED. 
@@ -45,15 +49,28 @@ The run_container.sh script takes 4 parameters, the path to directory that you s
 * **--inventory-dir**
     * This is the path in the executing users home directory that stores an inventory directory that contains your inventory file
     * e.g. /home/ansiblerunner/rhis/rhis-builder-inventory/example.ca/inventory
+* **--ansible-ver 2.5**
+    * This launches the container rhis-provisioner-9-2.5:latest with the above parameters to provide a provisioner to build AAP 2.5.
+    * Omitting the parameter or specifying '2.4' for the version will launch the environment for AAP 2.4
 
 For example, if you used rhis-builder-provisioner to prepare your provisioner node, you should have the rhis-builder-inventory project cloned to your provisioner node. Running the following command will launch the container and connect it to the projects inventory directories:
 
 ~~~
 
+# runs an environment capable of building RHIS with AAP 2.4
 ./run_container.sh --secrets-dir ~/rhis/rhis-builder-inventory/example.ca/vault \
                    --group-vars-dir ~/rhis/rhis-builder-inventory/example.ca/group_vars \
                    --host-vars-dir ~/rhis/rhis-builder-inventory/example.ca/host_vars \
                    --inventory-dir ~/rhis/rhis-builder-inventory/example.ca/inventory
+
+# runs an environment capable of building RHIS with AAP 2.5 (i.e. includes ansible.controller >= version 4.6)
+./run_container.sh --secrets-dir ~/rhis/rhis-builder-inventory/example.ca/vault \
+                   --group-vars-dir ~/rhis/rhis-builder-inventory/example.ca/group_vars \
+                   --host-vars-dir ~/rhis/rhis-builder-inventory/example.ca/host_vars \
+                   --inventory-dir ~/rhis/rhis-builder-inventory/example.ca/inventory \
+                   --ansible-ver 2.5
+
+## NOTE: Your configuration files must include the appropriate references to synchronize and load the appropriate 2.5 content!
 
 ~~~
 

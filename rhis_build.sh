@@ -1,6 +1,6 @@
 #!/bin/bash
 version=$(<version.txt)
-ansiblever=""
+ansiblever="2.4"
 nocache="false"
 buildargs=""
 

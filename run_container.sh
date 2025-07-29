@@ -44,7 +44,7 @@ fi
 if [[ $groupvarsdir == "" || $hostvarsdir == "" || $inventorydir == "" ]]; then
   echo "A custom configuration was not provided, using example.ca demo configuration."
   
-  podman run -it -v $secretsdir:/rhis/vault:Z localhost/rhis-provisioner-9:latest
+  podman run -it -v $secretsdir:/rhis/vault:Z --hostname provisioner localhost/rhis-provisioner-9:latest
   
   # Quietly restore the SELinux context 
   restorecon -FRq $secretsdir
@@ -56,6 +56,7 @@ else
                -v $groupvarsdir:/rhis/vars/group_vars:Z \
                -v $hostvarsdir:/rhis/vars/host_vars:Z \
                -v $inventorydir:/rhis/vars/external_inventory:Z \
+               --hostname provisioner \
                localhost/rhis-provisioner-9:latest
   
   # Quietly restore the SELinux context 

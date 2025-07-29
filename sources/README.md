@@ -2,14 +2,82 @@ rhis-provisioner Container build
 
 This project simplifies getting started with the Red Hat Infrastructure Standard and rhis-builder.
 The container is designed to have all the projects, dependencies and examples for building a Red Hat Infrastructure Standard environment.
-This current container build is designed to include dependencies for AAP 2.4. There will be a container that implements ansible.controller collection version 4.6+ to support AAP 2.5.
+This current container build is defaults to include dependencies for AAP 2.4. If you require the container to build for AAP 2.5, pass the appropriate arg to the rhis_build.sh script.
+
+### Building the container.
+
 The container is designed to provide the interactive provisioner environment.
-You can build the container from the Containerfile using the rhis_build.sh script.
-You can pass --no-cache to the rhis_build.sh script to force the build to generate a fresh build.
+The container build process is managed by the rhis_build.sh bash script. Ensure the script is executable by the current user and run the script.
 
-Use run_container.sh to launch the container.
+~~~
+./rhis_build.sh
+~~~
 
-See the podman_commands.txt for running with your own custom configuration instead of the example.ca demo environment.
+Pass --no-cache to the rhis_build.sh script to force the build script to regenerate all content.
+
+~~~
+./rhis_build.sh --no-cache
+~~~
+
+Both of the above create a container that is compatible with building and managing an RHIS environment utilizing Ansible Automation Platform 2.4. The container created will be **rhis-provisioner-9-2.4:latest**
+
+To build the container to build and manage an RHIS enviroment that utilizes AAP 2.5. pass "--ansible-ver 2.5" to the build script. The container created will be **rhis-provisioner-9-2.5:latest**
+
+~~~
+./rhis_build.sh --no-cache --ansible-ver 2.5
+
+Once the container is built, you can launch the container directly or use the script.
+Using the run_container.sh to launch the container is strongly recommended as it coordinates mounting your vault, group_vars, host_vars, and inventory directories for your custom build into the container and securing the files. 
+
+### Running the run_container.sh script.
+
+The run_container.sh script takes 4 parameters, the path to directory that you store your ansible vault files and 3 additional parameters that provide the paths to your custom configuration. Our sample environment is based on the domain example.ca and is included inside the container.
+
+* **--secrets-dir**   
+    * REQUIRED. 
+    * This is the path in the executing users home directory that stores the vault files that you will use, in particular, rhis_builder_vault.yml
+* **--group-vars-dir**
+    * This is the path in the executing users home directory that stores the group_vars directory for rhis-builder projects
+    * e.g. /home/ansiblerunner/rhis/rhis-builder-inventory/example.ca/vault
+* **--host-vars-dir**
+    * This is the path in the executing users home directory that stores the host_vars directory for rhis-builder projects
+    * e.g. /home/ansiblerunner/rhis/rhis-builder-inventory/example.ca/group_vars
+* **--inventory-dir**
+    * This is the path in the executing users home directory that stores an inventory directory that contains your inventory file
+    * e.g. /home/ansiblerunner/rhis/rhis-builder-inventory/example.ca/inventory
+
+For example, if you used rhis-builder-provisioner to prepare your provisioner node, you should have the rhis-builder-inventory project cloned to your provisioner node. Running the following command will launch the container and connect it to the projects inventory directories:
+
+~~~
+
+./run_container.sh --secrets-dir ~/rhis/rhis-builder-inventory/example.ca/vault \
+                   --group-vars-dir ~/rhis/rhis-builder-inventory/example.ca/group_vars \
+                   --host-vars-dir ~/rhis/rhis-builder-inventory/example.ca/host_vars \
+                   --inventory-dir ~/rhis/rhis-builder-inventory/example.ca/inventory
+
+~~~
+
+Once you are comfortable navigating the projects, you can build your own configurations and launch the script with all the parameters.
+This is where you will build your own RHIS environment.
+There is a series of samples that explain when you will use each of the playbooks that are provided.
+
+### Running an RHIS builder projects plays.
+
+In general in all projects, there are 4 playbooks.
+
+- main.yml - is the primary entry point for a project and will run all the configured roles and tasks in order to build the complete project components.
+
+The other 3 playbooks are utility plays that are useful for testing and debugging configurations, day 2 operations, configuration remediation, etc..
+
+- run_role.yml - the play that takes the name of the role as an extra variable (e.g. -e "role_name=activation_keys"), loads your variable files and executes only that role.
+- run_role_task.yml - most roles in RHIS consist of multiple tasks. This playbook allows you to dig in where necessary and run a particular task.
+- run_task.yml - in several of the rhis-builder projects, there are tasks that are outside the bounds of a particular role. This playbook accepts the task
 
 See the rhis-builder_sample_commands.txt for running various roles, tasks or full builds with your own custom configuration instead of the example.ca demo environment.
+
+Please, comments, feature requests, issues, and pull requests are all welcome.
+
+Regards,
+
+The RHIS Team
 

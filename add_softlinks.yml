@@ -18,18 +18,11 @@
       - name: "rhis-builder-imagebuilder"
       - name: "rhis-builder-yubi"
       - name: "rhis-builder-convert2rhel"
+      # DO NOT INCLUDE rhis-builder-inventory... this is the definitive example directory
 
   tasks:
 
-    - name: "Copy example.ca to the group_vars directories for example.ca demo"
-      ansible.builtin.command: "cp -R {{ rhis_root_dir }}/{{ project.name }}/group_vars {{ base_backup_path }}/group_vars"
-      register: rm_result
-      changed_when: rm_result.rc == 0
-      loop: "{{ project_list }}"
-      loop_control:
-        loop_var: project
-
-    - name: "Delete the group_vars directories for example.ca demo"
+    - name: "Delete the group_vars directories for each project"
       ansible.builtin.command: "rm -rf {{ rhis_root_dir }}/{{ project.name }}/group_vars"
       register: rm_result
       changed_when: rm_result.rc == 0
@@ -47,15 +40,7 @@
       loop_control:
         loop_var: project
 
-    - name: "Copy example.ca to the host_vars directories for example.ca demo"
-      ansible.builtin.command: "cp -R {{ rhis_root_dir }}/{{ project.name }}/host_vars {{ base_backup_path }}/host_vars"
-      register: rm_result
-      changed_when: rm_result.rc == 0
-      loop: "{{ project_list }}"
-      loop_control:
-        loop_var: project
-
-    - name: "Delete the host_vars directories for example.ca demo"
+    - name: "Delete the host_vars directories for each project"
       ansible.builtin.command: "rm -rf {{ rhis_root_dir }}/{{ project.name }}/host_vars"
       register: rm_result
       changed_when: rm_result.rc == 0

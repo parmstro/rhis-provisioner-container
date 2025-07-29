@@ -36,15 +36,15 @@ echo "group-vars-dir: $groupvarsdir"
 echo "host-vars-dir: $hostvarsdir"
 echo "group-vars-dir: $inventorydir"
 
-if [ $secretsdir == "" ]; then
-  echo "A secrets directory is required"
+if [[ $secretsdir == "" ]]; then
+  echo "ERROR: A secrets directory is required - exiting."
   exit 1
 fi
 
 if [[ $groupvarsdir == "" || $hostvarsdir == "" || $inventorydir == "" ]]; then
   echo "A custom configuration was not provided, using example.ca demo configuration."
   
-  podman run -it -v $secretsdir:/rhis/vault:Z --hostname provisioner localhost/rhis-provisioner-9:latest
+  podman run -it -v $secretsdir:/rhis/vars/vault:Z --hostname provisioner localhost/rhis-provisioner-9:latest
   
   # Quietly restore the SELinux context 
   restorecon -FRq $secretsdir
@@ -52,7 +52,7 @@ if [[ $groupvarsdir == "" || $hostvarsdir == "" || $inventorydir == "" ]]; then
 else
   echo "Mounting custom configuration"
 
-  podman run -it -v $secretsdir:/rhis/vault:Z \
+  podman run -it -v $secretsdir:/rhis/vars/vault:Z \
                -v $groupvarsdir:/rhis/vars/group_vars:Z \
                -v $hostvarsdir:/rhis/vars/host_vars:Z \
                -v $inventorydir:/rhis/vars/external_inventory:Z \

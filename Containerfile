@@ -1,5 +1,6 @@
 FROM registry.redhat.io/ubi9:latest
 LABEL maintainer="Paul Armstrong <github:@parmstro>"
+ENTRYPOINT ["/bin/bash", "-c", "echo '##########################################\nWelcome to the RHIS Provisioner container!' && exec /bin/bash"]
 # rpm requirements
 RUN dnf -y install ansible-core git vim python3 python3-ipalib python3-jmespath python3-pip bind-utils
 # python requirements
@@ -10,7 +11,15 @@ RUN python3 -m pip install ipalib
 RUN mkdir -p /etc/ansible
 COPY sources/ansible.cfg /etc/ansible/ansible.cfg
 RUN ansible-galaxy collection install ansible.utils
-RUN ansible-galaxy collection install ansible.controller:"<4.6"
+
+RUN if [[ ${ANSIBLE_VER} == "2.5" ]]; then \
+    echo "Installing ansible.controller collection for AAP 2.5"; \
+    ansible-galaxy collection install ansible.controller:">=4.6"; \
+    else \
+    echo "Installing ansible.controller collection for AAP 2.4"; \
+    ansible-galaxy collection install ansible.controller:"<4.6"; \
+    fi
+
 RUN ansible-galaxy collection install ansible.netcommon
 RUN ansible-galaxy collection install ansible.posix
 RUN ansible-galaxy collection install azure.azcollection
@@ -35,18 +44,16 @@ RUN git clone https://github.com/parmstro/rhis-builder-ansible-ee.git
 RUN git clone https://github.com/parmstro/rhis-builder-imagebuilder.git
 RUN git clone https://github.com/parmstro/rhis-builder-yubi.git
 RUN git clone https://github.com/parmstro/rhis-builder-convert2rhel.git
-RUN git clone https://github.com/parmstro/rhis-builder-vault-SAMPLE.git
+RUN git clone https://github.com/parmstro/rhis-builder-inventory.git
 
 # Now make the folders for group_vars, host_vars and inventory files
 RUN mkdir -p /rhis/vars/group_vars
 RUN mkdir -p /rhis/vars/host_vars
 RUN mkdir -p /rhis/vars/external_inventory
-RUN mkdir -p /rhis/vars/example.ca/group_vars
-RUN mkdir -p /rhis/vars/example.ca/host_vars
-RUN mkdir -p /rhis/vars/example.ca/inventory
+RUN mkdir -p /rhis/vars/vault
 
-
-# Override the copy the softlink creation script to the container.
+# This cleans up the repo vars folders and links each project to our volume directories
+# we probably need to manage this for templates and files that we want to modify as well
 COPY add_softlinks.yml /rhis/add_softlinks.yml
 RUN chmod +x /rhis/add_softlinks.yml
 RUN ansible-playbook add_softlinks.yml

@@ -1,8 +1,31 @@
 #!/bin/bash
 version=$(<version.txt)
-podman login registry.redhat.io
+ansiblever=""
+nocache="false"
+buildargs=""
+
+while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+        -a|--ansible-ver)
+            ansiblever="$2"
+            shift # Shift past the value
+            ;;
+        -n|--no-cache)
+            nocache="true"
+            #shift # Shift past the value
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+    shift # Shift past the option
+done
+
 sudo dnf -y install ansible-core podman 
-cp ansible.cfg sources/ansible.cfg
+podman login registry.redhat.io
+
+cp /etc/ansible/ansible.cfg sources/ansible.cfg
 cp ansible.cfg.clean sources/ansible.cfg.clean
 cp podman_commands.txt sources/podman_commands.txt
 cp rhis-builder_sample_commands.txt sources/rhis-builder_sample_commands.txt 
@@ -10,10 +33,22 @@ cp add_softlinks.yml sources/add_softlinks.yml
 cp remove_softlinks.yml sources/remove_softlinks.yml
 cp README.md sources/README.md
 
-if [ $1 == --no-cache ]; then
-  podman build --no-cache -t rhis-provisioner-9:$version .
+echo
+echo "Running 'podman build' with the following parameters:"
+echo
+echo "ansible-ver: $ansiblever"
+echo "no-cache: $nocache"
+echo
+
+if [[ $ansiblever == "2.5" ]]; then
+  buildargs="--build-arg ANSIBLE_VER=2.5"
 else
-  podman build -t rhis-provisioner-9:$version .
+  buildargs="--build-arg ANSIBLE_VER=2.4"
 fi
 
-podman tag localhost/rhis-provisioner-9:$version rhis-provisioner-9:latest
+if [[ $nocache == "true" ]]; then
+  buildargs+=" --no-cache"
+fi
+
+podman build $buildargs -t rhis-provisioner-9-$ansiblever:$version .
+podman tag localhost/rhis-provisioner-9-$ansiblever:$version rhis-provisioner-9-$ansiblever:latest

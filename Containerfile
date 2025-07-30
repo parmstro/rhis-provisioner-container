@@ -3,7 +3,7 @@ LABEL maintainer="Paul Armstrong <github:@parmstro>"
 ENTRYPOINT ["/bin/bash", "-c", "echo '##########################################\nWelcome to the RHIS Provisioner container!' && exec /bin/bash"]
 # rpm requirements
 ARG ANSIBLE_VER
-RUN dnf -y install ansible-core git vim python3 python3-ipalib python3-jmespath python3-pip bind-utils
+RUN dnf -y install ansible-core git vim python3 python3-ipalib python3-jmespath python3-pip bind-utils iputils
 # python requirements
 RUN python3 -m pip install fqdn
 RUN python3 -m pip install gssapi

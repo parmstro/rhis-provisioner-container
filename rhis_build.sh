@@ -25,12 +25,16 @@ done
 sudo dnf -y install ansible-core podman 
 podman login registry.redhat.io
 
-cp /etc/ansible/ansible.cfg sources/ansible.cfg
+cp ansible.cfg sources/ansible.cfg
 cp ansible.cfg.clean sources/ansible.cfg.clean
-cp podman_commands.txt sources/podman_commands.txt
-cp rhis-builder_sample_commands.txt sources/rhis-builder_sample_commands.txt 
 cp add_softlinks.yml sources/add_softlinks.yml
-cp remove_softlinks.yml sources/remove_softlinks.yml
+cp rhis-builder_sample_commands.txt sources/rhis-builder_sample_commands.txt 
+cp build_idm_primary.sh sources/build_idm_primary.sh
+cp build_sat_primary_connected.sh sources/build_sat_primary_connected.sh
+cp build_test_hosts.sh sources/build_test_hosts.sh
+cp destroy_test_hosts.sh sources/destroy_test_hosts.sh
+cp build_aap_controller24.sh sources/build_aap_controller24.sh
+cp build_aap_hub24.sh sources/build_aap_hub24.sh
 cp README.md sources/README.md
 
 echo

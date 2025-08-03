@@ -3,7 +3,7 @@ LABEL maintainer="Paul Armstrong <github:@parmstro>"
 ENTRYPOINT ["/bin/bash", "-c", "echo '##########################################\nWelcome to the RHIS Provisioner container!' && exec /bin/bash"]
 # rpm requirements
 ARG ANSIBLE_VER
-RUN dnf -y install ansible-core git vim python3 python3-ipalib python3-jmespath python3-pip bind-utils iputils
+RUN dnf -y install ansible-core git vim python3 python3-ipalib python3-jmespath python3-pip bind-utils iputils bash-completion tmux
 # python requirements
 RUN python3 -m pip install fqdn
 RUN python3 -m pip install gssapi
@@ -48,9 +48,12 @@ RUN git clone https://github.com/parmstro/rhis-builder-convert2rhel.git
 RUN git clone https://github.com/parmstro/rhis-builder-inventory.git
 
 # Now make the folders for group_vars, host_vars and inventory files
+RUN mkdir -p /rhis/vars/external_inventory
+RUN mkdir -p /rhis/vars/external_tasks
+RUN mkdir -p /rhis/vars/files
 RUN mkdir -p /rhis/vars/group_vars
 RUN mkdir -p /rhis/vars/host_vars
-RUN mkdir -p /rhis/vars/external_inventory
+RUN mkdir -p /rhis/vars/vars
 RUN mkdir -p /rhis/vars/vault
 
 # This cleans up the repo vars folders and links each project to our volume directories
@@ -63,6 +66,25 @@ RUN ansible-playbook add_softlinks.yml
 COPY podman_commands.txt /rhis/podman_commands.txt
 COPY rhis-builder_sample_commands.txt /rhis/rhis-builder_sample_commands.txt
 COPY README.md /rhis/README.md
+
+# copy the sample build scripts
+COPY build_idm_primary.sh /rhis/build_idm_primary.sh
+RUN chmod +x /rhis/build_idm_primary.sh
+
+COPY build_sat_primary_connected.sh /rhis/build_sat_primary_connected.sh
+RUN chmod +x /rhis/build_sat_primary_connected.sh
+
+COPY build_test_hosts.sh /rhis/build_test_hosts.sh
+RUN chmod +x /rhis/build_test_hosts.sh
+
+COPY destroy_test_hosts.sh /rhis/destroy_test_hosts.sh
+RUN chmod +x /rhis/destroy_test_hosts.sh
+
+COPY build_aap_controller24.sh /rhis/build_aap_controller24.sh
+RUN chmod +x /rhis/build_aap_controller24.sh
+
+COPY build_aap_controller24.sh /rhis/build_aap_hub24.sh
+RUN chmod +x /rhis/build_aap_hub24.sh
 
 # Cleanup the ansible configuration
 COPY ansible.cfg.clean /etc/ansible/ansible.cfg

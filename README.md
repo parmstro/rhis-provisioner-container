@@ -35,20 +35,32 @@ Using the run_container.sh to launch the container is strongly recommended as it
 
 ### Running the run_container.sh script.
 
-The run_container.sh script controls launching the container. The script takes 4 parameters, the path to directory that you store your ansible vault files and 3 additional parameters that provide the paths to your custom configuration. Our sample environment is based on the domain example.ca and is included inside the container. With these 4 parameters the script launches ***rhis-provisioner-9-2.4:latest*** which is suitable for building an RHIS environment that utilizes Ansible Automation Platform 2.4. To launch the container ***rhis-provisioner-9.2.5:latest*** pass **'--ansible-ver 2.5'** to the run_container.sh script.
+The run_container.sh script controls launching the container. The script takes several parameters that represent the paths to the various directory that you store your ansible vault files and your custom configuration. With these parameters the script launches ***rhis-provisioner-9-2.4:latest*** which is suitable for building an RHIS environment that utilizes Ansible Automation Platform 2.4. To launch the container ***rhis-provisioner-9.2.5:latest*** pass **'--ansible-ver 2.5'** to the run_container.sh script. The script allows for the providing individual paths to each of the allowable ansible configuration directories so that you have complete flexibility for merging configurations across your builds. (We have configured the launch this way to allow for the greatest flexibility in both development and delivery configuration).
 
 * **--secrets-dir**   
     * REQUIRED. 
     * This is the path in the executing users home directory that stores the vault files that you will use, in particular, rhis_builder_vault.yml
+* **--external-tasks-dir**
+    * This is the path in the executing users home directory that stores the external_tasks directory for rhis-builder repositories
+    * External task are additional tasks that users run to prepare or extend their RHIS environment from within the rhis-provisioner container
+* **--files-dir**
+    * This is the path in the executing users home directory that stores the files directory for rhis-builder repositories. 
+    * As an example this is where the OpenSCAP contents and tailoring files are located
 * **--group-vars-dir**
-    * This is the path in the executing users home directory that stores the group_vars directory for rhis-builder projects
+    * This is the path in the executing users home directory that stores the group_vars directory for rhis-builder repositories
     * e.g. /home/ansiblerunner/rhis/rhis-builder-inventory/example.ca/vault
 * **--host-vars-dir**
-    * This is the path in the executing users home directory that stores the host_vars directory for rhis-builder projects
+    * This is the path in the executing users home directory that stores the host_vars directory for rhis-builder repositories
     * e.g. /home/ansiblerunner/rhis/rhis-builder-inventory/example.ca/group_vars
 * **--inventory-dir**
     * This is the path in the executing users home directory that stores an inventory directory that contains your inventory file
     * e.g. /home/ansiblerunner/rhis/rhis-builder-inventory/example.ca/inventory
+* **--templates-dir**
+    * This is the path in the executing users home directory that stores the templates directory for rhis-builder repositories
+    * As an example, all the job, partitioning and provisioning templates for the rhis-builder repositories are stored here.
+* **--vars-dir**
+    * This is the path in the executing users home directory that stores the vars directory for rhis-builder repositories
+    * As an example, any non-secret variable files that need to be made available to the rhis-builder repositories are stored here.
 * **--ansible-ver 2.5**
     * This launches the container rhis-provisioner-9-2.5:latest with the above parameters to provide a provisioner to build AAP 2.5.
     * Omitting the parameter or specifying '2.4' for the version will launch the environment for AAP 2.4
@@ -59,15 +71,23 @@ For example, if you used rhis-builder-provisioner to prepare your provisioner no
 
 # runs an environment capable of building RHIS with AAP 2.4
 ./run_container.sh --secrets-dir ~/rhis/rhis-builder-inventory/example.ca/vault \
-                   --group-vars-dir ~/rhis/rhis-builder-inventory/example.ca/group_vars \
-                   --host-vars-dir ~/rhis/rhis-builder-inventory/example.ca/host_vars \
-                   --inventory-dir ~/rhis/rhis-builder-inventory/example.ca/inventory
-
-# runs an environment capable of building RHIS with AAP 2.5 (i.e. includes ansible.controller >= version 4.6)
-./run_container.sh --secrets-dir ~/rhis/rhis-builder-inventory/example.ca/vault \
+                   --external-tasks-dir ~/rhis/rhis-builder-inventory/example.ca/external_tasks \
+                   --files-dir ~/rhis/rhis-builder-inventory/example.ca/files \
                    --group-vars-dir ~/rhis/rhis-builder-inventory/example.ca/group_vars \
                    --host-vars-dir ~/rhis/rhis-builder-inventory/example.ca/host_vars \
                    --inventory-dir ~/rhis/rhis-builder-inventory/example.ca/inventory \
+                   --templates-dir ~/rhis/rhis-builder-inventory/example.ca/templates \
+                   --vars-dir ~/rhis/rhis-builder-inventory/example.ca/vars
+
+# runs an environment capable of building RHIS with AAP 2.5 (i.e. includes ansible.controller >= version 4.6)
+./run_container.sh --secrets-dir ~/rhis/rhis-builder-inventory/example.ca/vault \
+                   --external-tasks-dir ~/rhis/rhis-builder-inventory/example.ca/external_tasks \
+                   --files-dir ~/rhis/rhis-builder-inventory/example.ca/files \
+                   --group-vars-dir ~/rhis/rhis-builder-inventory/example.ca/group_vars \
+                   --host-vars-dir ~/rhis/rhis-builder-inventory/example.ca/host_vars \
+                   --inventory-dir ~/rhis/rhis-builder-inventory/example.ca/inventory \
+                   --templates-dir ~/rhis/rhis-builder-inventory/example.ca/templates \
+                   --vars-dir ~/rhis/rhis-builder-inventory/example.ca/templates \
                    --ansible-ver 2.5
 
 ## NOTE: Your configuration files must include the appropriate references to synchronize and load the appropriate 2.5 content!

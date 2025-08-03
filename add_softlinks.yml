@@ -5,8 +5,11 @@
   gather_facts: false
   vars:
     rhis_root_dir: "/rhis"
+    default_files_link: "/rhis/vars/files"
     default_group_link: "/rhis/vars/group_vars"
     default_host_link: "/rhis/vars/host_vars"
+    default_template_link: "/rhis/vars/templates"
+    default_vars_link: "/rhis/vars/vars"
     base_backup_path: "/rhis/vars/example.ca"
     project_list:
       - name: "rhis-builder-idm"
@@ -21,6 +24,24 @@
       # DO NOT INCLUDE rhis-builder-inventory... this is the definitive example directory
 
   tasks:
+
+    - name: "Delete the files directories for each project"
+      ansible.builtin.command: "rm -rf {{ rhis_root_dir }}/{{ project.name }}/files"
+      register: rm_result
+      changed_when: rm_result.rc == 0
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Link the files directory to external"
+      ansible.builtin.file:
+        src: "{{ default_files_link }}"
+        dest: "{{ rhis_root_dir }}/{{ project.name }}/files"
+        state: link
+        mode: "0644"
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
 
     - name: "Delete the group_vars directories for each project"
       ansible.builtin.command: "rm -rf {{ rhis_root_dir }}/{{ project.name }}/group_vars"
@@ -57,3 +78,23 @@
       loop: "{{ project_list }}"
       loop_control:
         loop_var: project
+
+    - name: "Delete the templates directories for each project"
+      ansible.builtin.command: "rm -rf {{ rhis_root_dir }}/{{ project.name }}/templates"
+      register: rm_result
+      changed_when: rm_result.rc == 0
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Link the templates directory to external"
+      ansible.builtin.file:
+        src: "{{ default_template_link }}"
+        dest: "{{ rhis_root_dir }}/{{ project.name }}/templates"
+        state: link
+        mode: "0644"
+        force: true
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+

@@ -72,17 +72,17 @@ For example, if you used rhis-builder-provisioner to prepare your provisioner no
 # runs an environment capable of building RHIS with AAP 2.4
 ./run_container.sh --secrets-dir ~/rhis/rhis-builder-inventory/example.ca/vault \
                    --external-tasks-dir ~/rhis/rhis-builder-inventory/example.ca/external_tasks \
-                   --files-dir ~/rhis/rhis-builder-inventory/example.ca/files_vars \
+                   --files-dir ~/rhis/rhis-builder-inventory/example.ca/files \
                    --group-vars-dir ~/rhis/rhis-builder-inventory/example.ca/group_vars \
                    --host-vars-dir ~/rhis/rhis-builder-inventory/example.ca/host_vars \
                    --inventory-dir ~/rhis/rhis-builder-inventory/example.ca/inventory \
                    --templates-dir ~/rhis/rhis-builder-inventory/example.ca/templates \
-                   --vars-dir ~/rhis/rhis-builder-inventory/example.ca/templates \
+                   --vars-dir ~/rhis/rhis-builder-inventory/example.ca/vars
 
 # runs an environment capable of building RHIS with AAP 2.5 (i.e. includes ansible.controller >= version 4.6)
 ./run_container.sh --secrets-dir ~/rhis/rhis-builder-inventory/example.ca/vault \
                    --external-tasks-dir ~/rhis/rhis-builder-inventory/example.ca/external_tasks \
-                   --files-dir ~/rhis/rhis-builder-inventory/example.ca/files_vars \
+                   --files-dir ~/rhis/rhis-builder-inventory/example.ca/files \
                    --group-vars-dir ~/rhis/rhis-builder-inventory/example.ca/group_vars \
                    --host-vars-dir ~/rhis/rhis-builder-inventory/example.ca/host_vars \
                    --inventory-dir ~/rhis/rhis-builder-inventory/example.ca/inventory \

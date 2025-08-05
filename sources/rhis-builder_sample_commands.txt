@@ -18,4 +18,4 @@
 # Run a simple command to create or update the activation keys for the satellite organization
 # See the activation_keys.yml file under satellite.example.ca in the host_vars directory for the required yaml configuration format.
 
-ansible-playbook -i /rhis/vars/external_inventory/inventory -u ansiblerunner --ask-pass --ask-vault-password --limit=sat_primary -e "vault_dir=/rhis/vars/vault/" -e "role_name=activation_keys" run_role.yml
+ansible-playbook -i /rhis/vars/external_inventory/inventory -u ansiblerunner --ask-pass --limit=sat_primary -e "vault_dir=/rhis/vault/" -e "role_name=activation_keys" run_role.yml

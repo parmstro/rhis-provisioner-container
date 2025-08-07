@@ -1,5 +1,10 @@
 FROM registry.redhat.io/ubi9:latest
 LABEL maintainer="Paul Armstrong <github:@parmstro>"
+LABEL contributors="Paul Armstrong <github:@parmstro>, Charles Shaw <github: @shawkingly>, Mike Savage <github:@heatmiser>, Cory McKee <github:@cojmckee>" 
+LABEL description="The rhis-provisioner container is built from rhel ubi9 and the rhis-builder set of repositories. It is design to make easy to implement the Red Hat Infrastructure Standard."
+LABEL name="rhis-provisioner"
+LABEL summary="Provides the latest build of rhis-builder repositories."
+LABEL version="1.0"
 ENTRYPOINT ["/bin/bash", "-c", "echo '##########################################\nWelcome to the RHIS Provisioner container!' && exec /bin/bash"]
 # rpm requirements
 ARG ANSIBLE_VER

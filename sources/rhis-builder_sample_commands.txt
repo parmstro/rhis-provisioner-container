@@ -5,17 +5,36 @@
 # For now, see the example.ca host_vars and group_vars files
 
 # There is a main.yml file in each project. The main.yml file runs all roles and tasks in the proper order to ensure the proper initial build. 
+
+# As an example, you would run the following to build the IdM primary server based on your inventory and variable files mounted when you started the container.
+
+ansible-playbook --inventory /rhis/vars/external_inventory/inventory \
+                 --user ansiblerunner \
+                 --ask-pass \
+                 --ask-vault-password \
+                 --limit=idm_primary \
+                 --extra-vars "vault_dir=/rhis/vars/vault/" \
+                 --extra-vars "role_name=activation_keys" \
+                 /rhis/rhis-builder-idm/main.yml
+
 # After the initial build you may run indvidual roles and tasks as necessary for day 2 operations.
 # You may also run indvidual roles and tasks to customize your builds.
 # Please note that all roles check for the existence of the required configuration list needed.
 # If the configuration list is absent or is a zero element length list or dictionary, the role will be skipped
 
-# here is an example
-
+# Here is an example of using the "run_role.yml" utility play to configure activation keys for your Satellite.
 
 # rhis-builder-satellite 
 
 # Run a simple command to create or update the activation keys for the satellite organization
 # See the activation_keys.yml file under satellite.example.ca in the host_vars directory for the required yaml configuration format.
 
-ansible-playbook -i /rhis/vars/external_inventory/inventory -u ansiblerunner --ask-pass --limit=sat_primary -e "vault_dir=/rhis/vault/" -e "role_name=activation_keys" run_role.yml
+ansible-playbook --inventory /rhis/vars/external_inventory/inventory \
+                 --user ansiblerunner \
+                 --ask-pass \
+                 --ask-vault-password \
+                 --limit=sat_primary \
+                 --extra-vars "vault_dir=/rhis/vars/vault/" \
+                 --extra-vars "role_name=activation_keys" \
+                 /rhis/rhis-builder-satellite/run_role.yml
+

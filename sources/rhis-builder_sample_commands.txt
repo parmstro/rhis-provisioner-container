@@ -38,3 +38,24 @@ ansible-playbook --inventory /rhis/vars/external_inventory/inventory \
                  --extra-vars "role_name=activation_keys" \
                  /rhis/rhis-builder-satellite/run_role.yml
 
+# Run a task within a role
+
+ansible-playbook --inventory /rhis/vars/external_inventory/inventory \
+                 --user ansiblerunner \
+                 --ask-pass \
+                 --ask-vault-pass \
+                 --extra-vars "vault_dir=/rhis/vars/vault" \
+                 --extra-vars "role_name=platform" \
+                 --extra-vars "task_name=ensure_ssh_user" \
+                 --limit=platform_installer  \
+                 /rhis/rhis-builder-aap/run_role_task.yml
+
+ansible-playbook --inventory /rhis/vars/external_inventory/inventory \
+                 --user ansiblerunner \
+                 --ask-pass \
+                 --ask-vault-pass \
+                 --extra-vars "vault_dir=/rhis/vars/vault" \
+                 --extra-vars "role_name=platform" \
+                 --extra-vars "task_name=ensure_ssh_user_cleanup" \
+                 --limit=platform_installer  \
+                 /rhis/rhis-builder-aap/run_role_task.yml

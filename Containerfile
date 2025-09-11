@@ -8,11 +8,10 @@ LABEL version="1.0"
 ENTRYPOINT ["/bin/bash", "-c", "echo '##########################################\nWelcome to the RHIS Provisioner container!' && exec /bin/bash"]
 # rpm requirements
 ARG ANSIBLE_VER
-RUN dnf -y install ansible-core git vim python3 python3-ipalib python3-jmespath python3-pip bind-utils iputils bash-completion tmux
+RUN dnf -y install ansible-core git vim python3 python3-ipalib python3-gssapi python3-jmespath python3-pip bind-utils iputils bash-completion tmux
 # python requirements
 RUN python3 -m pip install fqdn
-RUN python3 -m pip install gssapi
-RUN python3 -m pip install ipalib
+
 # ansible collection requirements
 RUN mkdir -p /etc/ansible
 COPY sources/ansible.cfg /etc/ansible/ansible.cfg

@@ -79,6 +79,9 @@ COPY README.md /rhis/README.md
 COPY build_idm_primary.sh /rhis/build_idm_primary.sh
 RUN chmod +x /rhis/build_idm_primary.sh
 
+COPY build_idm_primary.sh /rhis/build_idm_replicas.sh
+RUN chmod +x /rhis/build_idm_replicas.sh
+
 COPY build_sat_primary_connected.sh /rhis/build_sat_primary_connected.sh
 RUN chmod +x /rhis/build_sat_primary_connected.sh
 

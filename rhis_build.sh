@@ -37,6 +37,8 @@ cp build_aap_controller24.sh sources/build_aap_controller24.sh
 cp build_aap_hub24.sh sources/build_aap_hub24.sh
 cp README.md sources/README.md
 
+cp ipareplica_test_patch.py sources/ipareplica_test_patch.py
+
 echo
 echo "Running 'podman build' with the following parameters:"
 echo

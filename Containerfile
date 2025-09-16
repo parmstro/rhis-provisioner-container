@@ -36,6 +36,10 @@ RUN ansible-galaxy collection install redhat.rhel_idm
 RUN ansible-galaxy collection install redhat.rhel_system_roles
 RUN ansible-galaxy collection install redhat.satellite
 RUN ansible-galaxy collection install redhat.satellite_operations
+
+# copy our ipareplica patch to the proper location
+# COPY sources/ipareplica_test_patch.py /root/.ansible/collections/ansible_collections/redhat/rhel_idm/plugins/modules/ipareplica_test.py
+
 # add the rhis builder repos
 RUN mkdir -p /rhis
 WORKDIR /rhis

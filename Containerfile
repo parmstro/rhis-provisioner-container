@@ -36,6 +36,7 @@ RUN ansible-galaxy collection install redhat.rhel_idm
 RUN ansible-galaxy collection install redhat.rhel_system_roles
 RUN ansible-galaxy collection install redhat.satellite
 RUN ansible-galaxy collection install redhat.satellite_operations
+RUN ansible-galaxy collection install community.crypto
 
 # copy our ipareplica patch to the proper location
 # COPY sources/ipareplica_test_patch.py /root/.ansible/collections/ansible_collections/redhat/rhel_idm/plugins/modules/ipareplica_test.py

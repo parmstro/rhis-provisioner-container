@@ -1,0 +1,16 @@
+If we are building with IdM, we need to add the IdM root CA cert to the container.
+If we are not building with IdM, we need to add any alternate CA certs to the container for secure communication to the target hosts to be managed.
+If we cannot, we need to set validate_certs to false.
+
+Extend the Container ENTRYPOINT to accept:
+- project         - which rhis-builder repository we want to invoke
+- play            - [ main | run_role | run_task | run_role_task ]
+- role_name       - required when play is run_role or run_role_task
+- task_name       - required when play is run_task or run_role_task
+- ssh_pass        - if required, the file containing the ssh credential or the credential
+- vault_password  - if required, the file containing the vault password credential or the credential
+
+Enhance the above to use a credential source to get the ssh credential and vault credential.
+This may not be necessary as the container launch itself is likely to be wrapped in an ansible play that will get the credentials from a credential source...
+layers on layers on layers... half a hundred ways of implementing this.
+

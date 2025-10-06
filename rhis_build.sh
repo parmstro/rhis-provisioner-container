@@ -3,6 +3,7 @@ version=$(<version.txt)
 ansiblever="2.4"
 nocache="false"
 buildargs=""
+ansiblecfg="/etc/ansible/ansible.cfg"
 
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
@@ -13,6 +14,10 @@ while [[ "$#" -gt 0 ]]; do
         -n|--no-cache)
             nocache="true"
             #shift # Shift past the value
+            ;;
+        -c|--ansible-config)
+            ansiblecfg="$2"
+            shift
             ;;
         *)
             echo "Unknown option: $1"
@@ -25,7 +30,7 @@ done
 sudo dnf -y install ansible-core podman 
 podman login registry.redhat.io
 
-cp ansible.cfg sources/ansible.cfg
+cp $ansiblecfg sources/ansible.cfg
 cp ansible.cfg.clean sources/ansible.cfg.clean
 cp add_softlinks.yml sources/add_softlinks.yml
 cp rhis-builder_sample_commands.txt sources/rhis-builder_sample_commands.txt 

@@ -1,0 +1,34 @@
+---
+# Ansible Collection requirements for everything EXCEPT ansible.controller
+# ansible.controller is dependent on the version of ansible!!!
+# this is managed in the Containerfile
+
+collections:
+  - name: "ansible.utils"
+    version: "*"
+  - name: "ansible.posix"
+    version: "*"
+  - name: "ansible.netcommon"
+    version: "*"
+  - name: "ansible.controller"
+    version: "<4.6"              # CHANGES HERE for AAP 2.4
+  - name: "azure.azcollection"
+    version: "*"
+  - name: "community.aws"
+    version: "*"
+  - name: "community.crypto"
+    version: "*"
+  - name: "community.general"
+    version: "*"
+  - name: "community.vmware"
+    version: "*"
+  - name: "containers.podman"
+    version: "*"
+  - name: "redhat.rhel_idm"
+    version: ">=1.14.7"           # earlier versions fail with 'dns_over_tls' option error
+  - name: "redhat.rhel_system_roles"
+    version: "*"
+  - name: "redhat.satellite"
+    version: "*"
+  - name: "redhat.satellite_operations"
+    version: "*"

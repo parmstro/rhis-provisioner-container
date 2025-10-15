@@ -97,4 +97,3 @@
       loop: "{{ project_list }}"
       loop_control:
         loop_var: project
-

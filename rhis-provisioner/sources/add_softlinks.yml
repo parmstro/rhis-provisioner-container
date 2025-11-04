@@ -5,12 +5,14 @@
   gather_facts: false
   vars:
     rhis_root_dir: "/rhis"
+    default_inventory_link: "/rhis/vars/external_inventory"
+    default_external_tasks_link: "/rhis/vars/external_tasks"
     default_files_link: "/rhis/vars/files"
     default_group_link: "/rhis/vars/group_vars"
     default_host_link: "/rhis/vars/host_vars"
     default_template_link: "/rhis/vars/templates"
     default_vars_link: "/rhis/vars/vars"
-    base_backup_path: "/rhis/vars/example.ca"
+    default_vault_link: "/rhis/vars/vault"
     project_list:
       - name: "rhis-builder-idm"
       - name: "rhis-builder-satellite"
@@ -25,15 +27,51 @@
 
   tasks:
 
-    - name: "Delete the files directories for each project"
-      ansible.builtin.command: "rm -rf {{ rhis_root_dir }}/{{ project.name }}/files"
-      register: rm_result
-      changed_when: rm_result.rc == 0
+    - name: "Delete any inventory for each project"
+      ansible.builtin.file:
+        path: "{{ rhis_root_dir }}/{{ project.name }}/inventory"
+        state: absent
       loop: "{{ project_list }}"
       loop_control:
         loop_var: project
 
-    - name: "Link the files directory to external"
+    - name: "Link the inventory directory to the bind mount directory"
+      ansible.builtin.file:
+        src: "{{ default_inventory_link }}"
+        dest: "{{ rhis_root_dir }}/{{ project.name }}/inventory"
+        state: link
+        mode: "0644"
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Delete any external_tasks directory for each project"
+      ansible.builtin.file:
+        path: "{{ rhis_root_dir }}/{{ project.name }}/external_tasks"
+        state: absent
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Link the external_tasks directory to the bind mount directory"
+      ansible.builtin.file:
+        src: "{{ default_external_tasks_link }}"
+        dest: "{{ rhis_root_dir }}/{{ project.name }}/external_tasks"
+        state: link
+        mode: "0644"
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Delete the files directories for each project"
+      ansible.builtin.file:
+        path: "{{ rhis_root_dir }}/{{ project.name }}/files"
+        state: absent
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Link the files directory to the bind mount directory"
       ansible.builtin.file:
         src: "{{ default_files_link }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}/files"
@@ -44,14 +82,14 @@
         loop_var: project
 
     - name: "Delete the group_vars directories for each project"
-      ansible.builtin.command: "rm -rf {{ rhis_root_dir }}/{{ project.name }}/group_vars"
-      register: rm_result
-      changed_when: rm_result.rc == 0
+      ansible.builtin.file:
+        path: "{{ rhis_root_dir }}/{{ project.name }}/group_vars"
+        state: absent
       loop: "{{ project_list }}"
       loop_control:
         loop_var: project
 
-    - name: "Link the group_vars directory to external"
+    - name: "Link the group_vars directory to the bind mount directory"
       ansible.builtin.file:
         src: "{{ default_group_link }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}/group_vars"
@@ -62,14 +100,14 @@
         loop_var: project
 
     - name: "Delete the host_vars directories for each project"
-      ansible.builtin.command: "rm -rf {{ rhis_root_dir }}/{{ project.name }}/host_vars"
-      register: rm_result
-      changed_when: rm_result.rc == 0
+      ansible.builtin.file:
+        path: "{{ rhis_root_dir }}/{{ project.name }}/host_vars"
+        state: absent
       loop: "{{ project_list }}"
       loop_control:
         loop_var: project
 
-    - name: "Link the host_vars directory to external"
+    - name: "Link the host_vars directory to the bind mount directory"
       ansible.builtin.file:
         src: "{{ default_host_link }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}/host_vars"
@@ -80,20 +118,56 @@
         loop_var: project
 
     - name: "Delete the templates directories for each project"
-      ansible.builtin.command: "rm -rf {{ rhis_root_dir }}/{{ project.name }}/templates"
-      register: rm_result
-      changed_when: rm_result.rc == 0
+      ansible.builtin.file:
+        path: "{{ rhis_root_dir }}/{{ project.name }}/templates"
+        state: absent
       loop: "{{ project_list }}"
       loop_control:
         loop_var: project
 
-    - name: "Link the templates directory to external"
+    - name: "Link the templates directory to the bind mount directory"
       ansible.builtin.file:
         src: "{{ default_template_link }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}/templates"
         state: link
         mode: "0644"
         force: true
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Delete any vars directory for each project"
+      ansible.builtin.file:
+        path: "{{ rhis_root_dir }}/{{ project.name }}/vars"
+        state: absent
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Link the vars directory to the bind mount directory"
+      ansible.builtin.file:
+        src: "{{ default_vars_link }}"
+        dest: "{{ rhis_root_dir }}/{{ project.name }}/vars"
+        state: link
+        mode: "0644"
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Delete any vault directory for each project"
+      ansible.builtin.file:
+        path: "{{ rhis_root_dir }}/{{ project.name }}/vault"
+        state: absent
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
+    - name: "Link the inventory directory to the bind mount directory"
+      ansible.builtin.file:
+        src: "{{ default_vault_link }}"
+        dest: "{{ rhis_root_dir }}/{{ project.name }}/vault"
+        state: link
+        mode: "0644"
       loop: "{{ project_list }}"
       loop_control:
         loop_var: project

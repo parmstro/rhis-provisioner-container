@@ -9,6 +9,7 @@ nocache="false"
 buildargs=""
 ansiblecfg="/etc/ansible/ansible.cfg"
 push_registry="quay.io"
+push_repo="parmstro"
 push_registry_login=""
 push_registry_token=""
 
@@ -28,6 +29,10 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         -r|--push-registry)
             push_registry="$2"
+            shift
+            ;;
+        -R|--push-repo)
+            push_registry_repo="$2"
             shift
             ;;
         -u|--push-registry-login)
@@ -103,10 +108,11 @@ build_container() {
   podman tag localhost/rhis-base-9-$ansiblever:$version rhis-base-9-$ansiblever:latest
 
   if [[ -n "$push_registry" && -n "$push_registry_login" && -n "$push_registry_token" ]]; then
-    podman tag localhost/rhis-base-9-$ansiblever:$version quay.io/parmstro/rhis-base-9-$ansiblever:$version
-    podman tag localhost/rhis-base-9-$ansiblever:$version quay.io/parmstro/rhis-base-9-$ansiblever:latest
-    podman push quay.io/parmstro/rhis-base-9-$ansiblever:$version
-    podman push quay.io/parmstro/rhis-base-9-$ansiblever:latest
+    podman login -u=$push_registry_login -p=$push_registry_token $push_registry
+    podman tag localhost/rhis-base-9-$ansiblever:$version $push_registry/$push_repo/rhis-base-9-$ansiblever:$version
+    podman tag localhost/rhis-base-9-$ansiblever:$version $push_registry/$push_repo/rhis-base-9-$ansiblever:latest
+    podman push $push_registry/$push_repo/rhis-provisioner-9-$ansiblever:$version
+    podman push $push_registry/$push_repo/rhis-provisioner-9-$ansiblever:latest
   fi
 }
 

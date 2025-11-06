@@ -5,11 +5,13 @@ ansiblever="2.4"
 version_file="./version24.txt"
 version_mode="revision"
 base_version_file="../rhis-base/version24.txt" 
+base_inventory_version_file="inventory_version.txt"
 
 nocache="false"
 buildargs=""
 ansiblecfg="/etc/ansible/ansible.cfg"
 push_registry="quay.io"
+push_repo="parmstro"
 push_registry_login=""
 push_registry_token=""
 
@@ -29,6 +31,10 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         -r|--push-registry)
             push_registry="$2"
+            shift
+            ;;
+        -R|--push-repo)
+            push_registry_repo="$2"
             shift
             ;;
         -u|--push-registry-login)
@@ -51,6 +57,7 @@ while [[ "$#" -gt 0 ]]; do
             echo "    --ansible-ver - specify the AAP API version - one of '2.4' (default) or '2.5'"
             echo "    --ansible-config path_spec - provide the path specification to the ansible.cfg file (default: /etc/ansible/ansible.cfg)"
             echo "    --push-registry - the name of the remote registry to push the final image to (default: quay.io)"
+            echo "    --push-registry-repo - the name of the repo in the remote registry (default: parmstro)"
             echo "    --push-registry-login - the login for the push registry (e.g. mybot)"
             echo "    --push-registry-token - the authentication token for the push registry"
             echo "    --version-mode - increment major, minor, or revision version of the build"
@@ -106,14 +113,17 @@ build_container() {
     buildargs+=" --no-cache"
   fi
 
+  echo $buildargs
+
   podman build $buildargs -t rhis-provisioner-9-$ansiblever:$version .
   podman tag localhost/rhis-provisioner-9-$ansiblever:$version rhis-provisioner-9-$ansiblever:latest
 
   if [[ $push_registry && $push_registry_login && $push_registry_token ]]; then
-    podman tag localhost/rhis-provisioner-9-$ansiblever:$version quay.io/parmstro/rhis-provisioner-9-$ansiblever:$version
-    podman tag localhost/rhis-provisioner-9-$ansiblever:$version quay.io/parmstro/rhis-provisioner-9-$ansiblever:latest
-    podman push quay.io/parmstro/rhis-provisioner-9-$ansiblever:$version
-    podman push quay.io/parmstro/rhis-provisioner-9-$ansiblever:latest
+    podman login -u=$push_registry_login -p=$push_registry_token $push_registry
+    podman tag localhost/rhis-provisioner-9-$ansiblever:$version $push_registry/$push_repo/rhis-provisioner-9-$ansiblever:$version
+    podman tag localhost/rhis-provisioner-9-$ansiblever:$version $push_registry/$push_repo/rhis-provisioner-9-$ansiblever:latest
+    podman push $push_registry/$push_repo/rhis-provisioner-9-$ansiblever:$version
+    podman push $push_registry/$push_repo/rhis-provisioner-9-$ansiblever:latest
   fi
 }
 

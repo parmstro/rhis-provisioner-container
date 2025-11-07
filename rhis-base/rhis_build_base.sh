@@ -116,13 +116,28 @@ build_container() {
   fi
 }
 
-increment_version() {
+get_base_version() {
   if [[ $ansiblever == "2.5" ]]; then
-    version_file="./version25.txt"
+    base_version_file="../rhis-base/version25.txt" 
   else
-    version_file="./version24.txt"
+    base_version_file="../rhis-base/version24.txt" 
   fi
-  current_version=$(cat $version_file)
+  current_base_version=$(cat $base_version_file)
+  echo "${current_base_version}"
+}
+
+get_base_version_file() {
+  if [[ $ansiblever == "2.5" ]]; then
+    base_version_file="../rhis-base/version25.txt" 
+  else
+    base_version_file="../rhis-base/version24.txt" 
+  fi
+  echo "${base_version_file}"
+}
+
+
+increment_version() {
+  current_version=$(get_base_version)
   
   IFS='.' read -r major minor revision <<< "$current_version"
   case "$1" in
@@ -149,7 +164,7 @@ increment_version() {
 }
 
 update_version() {
-  echo $version > $version_file
+  echo $version > $(get_base_version_file)
 }
 
 version=$(increment_version "$version_mode")

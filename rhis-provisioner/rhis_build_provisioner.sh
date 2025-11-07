@@ -137,14 +137,37 @@ get_base_version() {
   echo "${current_base_version}"
 }
 
-increment_version() {
+get_base_version_file() {
   if [[ $ansiblever == "2.5" ]]; then
-    version_file="./version25.txt"
     base_version_file="../rhis-base/version25.txt" 
   else
-    version_file="./version24.txt"
     base_version_file="../rhis-base/version24.txt" 
   fi
+  echo "${base_version_file}"
+}
+
+get_rhis_version() {
+  if [[ $ansiblever == "2.5" ]]; then
+    rhis_version_file="./version25.txt" 
+  else
+    rhis_version_file="./version24.txt" 
+  fi
+  current_version=$(cat $rhis_version_file)
+  echo "${current_version}"
+}
+
+get_rhis_version_file() {
+  if [[ $ansiblever == "2.5" ]]; then
+    rhis_version_file="./version25.txt" 
+  else
+    rhis_version_file="./version24.txt" 
+  fi
+  echo "${rhis_version_file}"
+}
+
+increment_version() {
+  version_file=$(get_rhis_version_file)
+  base_version_file=$(get_base_version_file) 
   current_version=$(cat $version_file)
   base_vserion=$(cat $base_version_file)
 
@@ -173,7 +196,7 @@ increment_version() {
 }
 
 update_version() {
-  echo $version > $version_file
+  echo $version > $(get_rhis_version_file)
 }
 
 base_version=$(get_base_version)

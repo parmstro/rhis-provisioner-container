@@ -5,11 +5,17 @@ ansiblever="2.4"
 version_file="./version24.txt"
 version_mode="revision"
 base_version_file="../rhis-base/version24.txt" 
-base_inventory_version_file="inventory_version.txt"
+rhis_schema_version_file="rhis-schema-version.txt"
 
 nocache="false"
 buildargs=""
 ansiblecfg="/etc/ansible/ansible.cfg"
+
+pull_registry="localhost"
+pull_repo=""
+pull_registry_login=""
+pull_registry_token=""
+
 push_registry="quay.io"
 push_repo="parmstro"
 push_registry_login=""
@@ -29,19 +35,35 @@ while [[ "$#" -gt 0 ]]; do
             ansiblecfg="$2"
             shift
             ;;
-        -r|--push-registry)
+        -p|--pull-registry)
+            pull_registry="$2"
+            shift
+            ;;
+        -P|--push-registry)
             push_registry="$2"
             shift
             ;;
-        -R|--push-repo)
+        -r|--pull-registry-repo)
+            pull_registry_repo="$2"
+            shift
+            ;;
+        -R|--push-registry-repo)
             push_registry_repo="$2"
             shift
             ;;
-        -u|--push-registry-login)
+        -u|--pull-registry-login)
+            pull_registry_login="$2"
+            shift
+            ;;
+        -U|--push-registry-login)
             push_registry_login="$2"
             shift
             ;;
-        -t|--push-registry-token)
+        -t|--pull-registry-token)
+            pull_registry_token="$2"
+            shift
+            ;; 
+        -T|--push-registry-token)
             push_registry_token="$2"
             shift
             ;; 
@@ -56,11 +78,19 @@ while [[ "$#" -gt 0 ]]; do
             echo "    --no-cache - rebuild container from scatch"
             echo "    --ansible-ver - specify the AAP API version - one of '2.4' (default) or '2.5'"
             echo "    --ansible-config path_spec - provide the path specification to the ansible.cfg file (default: /etc/ansible/ansible.cfg)"
+            echo ""
+            echo "    --pull-registry - the name of the remote registry to pull the base image from (default: quay.io)"
+            echo "    --pull-registry-repo - the name of the repo in the remote pull registry (default: parmstro)"
+            echo "    --pull-registry-login - the login for the pull registry (e.g. mybot)"
+            echo "    --pull-registry-token - the authentication token for the pull registry"
+            echo ""
             echo "    --push-registry - the name of the remote registry to push the final image to (default: quay.io)"
             echo "    --push-registry-repo - the name of the repo in the remote registry (default: parmstro)"
             echo "    --push-registry-login - the login for the push registry (e.g. mybot)"
             echo "    --push-registry-token - the authentication token for the push registry"
+            echo ""
             echo "    --version-mode - increment major, minor, or revision version of the build"
+            echo "Specifying 'localhost' for either the pull or push registry will ignore the corresponding repo option."
             exit 1
             ;;
     esac
@@ -73,12 +103,25 @@ build_container() {
   echo "Ensuring ansible and podman requirements are installed..."
   sudo dnf -y install ansible-core podman
 
+  if [[ -n "$pull_registry" && -n "$pull_registry_login" && -n "$pull_registry_token" ]]; then
+    echo "Using $pull_registry as the pull registry. Logging in."
+    podman login $pull_registry -u $pull_registry_login -p $pull_registry_token
+    if [[ -n "$pull_registry" && -n "$pull_registry_repo" ]]; then
+      pull_path="$pull_registry/$pull_registry_repo"
+    fi
+  else
+    echo "pull_registry parameters not defined. Continuing with localhost."
+    pull_path="$pull_registry"
+  fi
+
   if [[ -n "$push_registry" && -n "$push_registry_login" && -n "$push_registry_token" ]]; then
-    echo "Using $push_registry as the pull and push registry. Logging in."
+    echo "Using $push_registry as the push registry. Logging in."
     podman login $push_registry -u $push_registry_login -p $push_registry_token
   else
     echo "push_registry parameters not defined. Continuing with local build."
   fi
+
+  schema_version=$(cat $rhis_schema_version_file)
 
   echo "Configure sources"
   cp $ansiblecfg sources/ansible.cfg
@@ -104,9 +147,9 @@ build_container() {
   echo
 
   if [[ $ansiblever == "2.5" ]]; then
-    buildargs="--build-arg ANSIBLE_VER=2.5 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version"
+    buildargs="--build-arg ANSIBLE_VER=2.5 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg PULL_PATH=$pull_path"
   else
-    buildargs="--build-arg ANSIBLE_VER=2.4 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version"
+   buildargs="--build-arg ANSIBLE_VER=2.4 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg PULL_PATH=$pull_path"
   fi
 
   if [[ $nocache == "true" ]]; then

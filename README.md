@@ -1,34 +1,69 @@
 # rhis-provisioner Container build
 
-You should still download and run the code in the [rhis-builder-provisioner](https://github.com/parmstro/rhis-builder-provisioner) repo! The rhis-builder-provisioner repo will set up your provisioner node with this project as well as the example.ca configuration and inventory project - [rhis-builder-inventory](https://github.com/parmstro/rhis-builder-provisioner). 
+WAIT. Unless you are developing for rhis-builder, just download the current containers and get started!
 
-This project simplifies getting started with the Red Hat Infrastructure Standard and rhis-builder.
+For building RHIS with AAP 2.4:
+
+podman pull quay.io/parmstro/rhis-provision-9-2.4:latest
+
+For building RHIS with AAP 2.5:
+
+podman pull quay.io/parmstro/rhis-provision-9-2.5:latest
+
+NEXT.
+
+You should still download and run the code in the [rhis-builder-provisioner](https://github.com/parmstro/rhis-builder-provisioner) repo! The rhis-builder-provisioner repo will set up your provisioner node with this project as well as the example.ca configuration and inventory project - [rhis-builder-inventory](https://github.com/parmstro/rhis-builder-inventory). 
+
+The rhis-provisioner container simplifies getting started with the Red Hat Infrastructure Standard and rhis-builder.
 
 The container is designed to have all the projects, dependencies and examples for building a Red Hat Infrastructure Standard environment.
-This current container build is defaults to include dependencies for AAP 2.4. If you require the container to build for AAP 2.5, pass the appropriate arg to the rhis_build.sh script.
+This current container build is defaults to include dependencies for AAP 2.4. If you require the container to build for AAP 2.5, pass the appropriate arg to the rhis_build_base.sh  and rhis_build_provisioner scripts.
 
-### Building the container.
+### Building the containers.
 
-The container is designed to provide the interactive provisioner environment.
-The container build process is managed by the rhis_build.sh bash script. Ensure the script is executable by the current user and run the script.
+If you are here, you care about developing and extending rhis-builder bits.
+
+The rhis-proivsioner container build is separated into two parts. 
+
+We always build a base image using ubi9:latest and add the ansible collections and related dependencies. This is the rhis-base container. There is a version for AAP 2.4 and AAP 2.5 as these different AAP versions have non-compatible ansible collections. This can take some time and the collections change much slower than some of the advances in RHIS, so avoiding building this every time speeds your development process.
+
+We then build the rhis-provisioner container. Again a AAP 2.4 version and AAP 2.5 version from the respective base. This is a quick build that adds all the rhis-builder repos into the container and sets the environment to read either the example.ca sample from rhis-builder-inventory or your customized version of it.
+
+For customization of the configuration, clone the rhis-builder-inventory project and then copy the contents to a new directory and then push it to a private git repo of your choice. You can then (relatively) safely store your configuration in a confidential fashion. Follow all the recommendations about vaulting secrets and avoid pushing confidential content to any git repo.
+
+The rhis-provisioner container is designed to provide the interactive provisioner environment for building an infrastructure base on the RH-ISAM.
+
+The container build process is managed by the rhis_build_base.sh and rhis_build_provisioner.sh bash script. Ensure the scripts are executable by the current user and then run the scripts. This will create a localhost copy of both containers. The rhis-provisioner build by default pulls from localhost/rhis-base-9-$aapver:latest
 
 ~~~
-./rhis_build.sh
+rhis_build_base.sh
+rhis_build_provisioner.sh
 ~~~
 
 Pass --no-cache to the rhis_build.sh script to force the build script to regenerate all content.
 
 ~~~
-./rhis_build.sh --no-cache
+./rhis_build_base.sh --no-cache
+./rhis_build_provisioner.sh --no-cache
 ~~~
 
-Both of the above create a container that is compatible with building and managing an RHIS environment utilizing Ansible Automation Platform 2.4. The container created will be **rhis-provisioner-9-2.4:latest**
+By default, the above results in a rhis-provisioner container that is compatible with building and managing an RHIS environment utilizing Ansible Automation Platform 2.4. The container created will be **rhis-provisioner-9-2.4:latest**
 
 To build the container to build and manage an RHIS enviroment that utilizes AAP 2.5. pass "--ansible-ver 2.5" to the build script. The container created will be **rhis-provisioner-9-2.5:latest**
 
 ~~~
-./rhis_build.sh --no-cache --ansible-ver 2.5
+./rhis_build_base.sh --no-cache --ansible-ver 2.5
+./rhis_build_provisioner.sh --no-cache --ansible-ver 2.5
 ~~~
+
+Now if you are looking to publish a copy to your external registry, you can do something like:
+
+~~~
+./rhis_build_base.sh --no-cache --ansible-ver 2.5 --push_registry="quay.example.ca" --push_repo "my_rhis"
+./rhis_build_provisioner.sh --no-cache --ansible-ver 2.5 --push_registry="quay.example.ca" --push_repo "my_rhis"
+~~~
+
+You can also specify pull registries 
 
 Once the container is built, you can launch the container directly or use the script.
 Using the run_container.sh to launch the container is strongly recommended as it coordinates mounting your vault, group_vars, host_vars, and inventory directories for your custom build into the container and securing the files. 

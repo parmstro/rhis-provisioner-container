@@ -47,19 +47,26 @@ while [[ "$#" -gt 0 ]]; do
             version_mode="$2"
             shift
             ;; 
-        *)
-            echo "Unknown option: $1"
+        -h|--help)
             echo "Usage: rhis_build_base.sh [options]"
             echo "Options:"
             echo "    --no-cache - rebuild container from scatch"
             echo "    --ansible-ver - specify the AAP API version - one of '2.4' (default) or '2.5'"
             echo "    --ansible-config path_spec - provide the path specification to the ansible.cfg file (default: /etc/ansible/ansible.cfg)"
             echo "    --push-registry - the name of the remote registry to push the final image to (default: quay.io)"
+            echo "    --push-registry_repo - the name of the repo in the remote registry to push the final image to (default: parmstro)"
             echo "    --push-registry-login - the login for the push registry (e.g. mybot)"
             echo "    --push-registry-token - the authentication token for the push registry"
             echo "    --version-mode - increment major, minor, or revision version of the build"
+            echo ""
+            echo "If push-registry values are not provided, only a local build will be created."
+            echo "Build always pulls registry.redhat.io/ubi9:latest"
+            echo "You will be asked to login to registry.redhat.io if you are not already logged in."
             exit 1
             ;;
+        *)
+            echo "Unknown option: $1"
+            ech0 "use -h | --help for a list of allowable options"
     esac
     shift # Shift past the option
 done

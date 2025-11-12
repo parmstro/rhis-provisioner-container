@@ -175,6 +175,8 @@ update_version() {
 }
 
 version=$(increment_version "$version_mode")
+build=$(cat ../build.txt)
+
 # Run main commands
 build_container
 

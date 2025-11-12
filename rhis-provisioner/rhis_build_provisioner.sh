@@ -2,6 +2,8 @@
 
 # default to AAP 2.4
 ansiblever="2.4"
+# Inuit word for packed snow used for building :-)
+build="aniyu"
 version_file="./version24.txt"
 version_mode="revision"
 base_version_file="../rhis-base/version24.txt" 
@@ -142,14 +144,15 @@ build_container() {
   echo
   echo "Running 'podman build' with the following parameters:"
   echo
+  echo "build: $build"
   echo "ansible-ver: $ansiblever"
   echo "no-cache: $nocache"
   echo
 
   if [[ $ansiblever == "2.5" ]]; then
-    buildargs="--build-arg ANSIBLE_VER=2.5 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg PULL_PATH=$pull_path"
+    buildargs="--build-arg ANSIBLE_VER=2.5 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg RHIS_BUILD=$build --build-arg PULL_PATH=$pull_path"
   else
-   buildargs="--build-arg ANSIBLE_VER=2.4 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg PULL_PATH=$pull_path"
+    buildargs="--build-arg ANSIBLE_VER=2.4 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg RHIS_BUILD=$build --build-arg PULL_PATH=$pull_path"
   fi
 
   if [[ $nocache == "true" ]]; then
@@ -244,6 +247,8 @@ update_version() {
 
 base_version=$(get_base_version)
 version=$(increment_version "$version_mode")
+build=$(cat ../build.txt)
+
 # Run main commands
 build_container
 

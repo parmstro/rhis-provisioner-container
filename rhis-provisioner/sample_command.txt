@@ -1,0 +1,1 @@
+ansible-playbook --inventory /rhis/vars/external_inventory/inventory --user ansiblerunner --ask-pass --ask-vault-password --extra-vars "vault_dir=/rhis/vars/vault/" --limit=sat_primary --extra-vars "role_name=activation_keys" run_role.yml

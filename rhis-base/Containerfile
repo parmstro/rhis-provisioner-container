@@ -5,9 +5,18 @@ LABEL description="The rhis-base container is built from rhel ubi9 and includes 
 LABEL summary="Provides the latest rhis-builder dependencies."
 # rpm requirements
 
-RUN dnf -y install ansible-core git vim python3 python3-ipalib python3-gssapi python3-jmespath python3-pip bind-utils iputils bash-completion tmux
-# python requirements
 
+# Copy the requirements file into the container
+COPY dnf_requirements.txt /tmp/dnf_requirements.txt
+
+# Install packages efficiently in a single RUN command
+# This reads the file into an array and passes them to yum install
+RUN mapfile -t rpmArray < /tmp/dnf_requirements.txt && \
+    dnf install -y "${rpmArray[@]}" && \
+    dnf clean all && \
+    rm -rf /var/cache/yum /tmp/dnf_requirements.txt
+
+# python requirements
 RUN mkdir -p /rhis
 COPY sources/requirements.txt /rhis/requirements.txt
 COPY sources/requirements.yml /rhis/requirements.yml

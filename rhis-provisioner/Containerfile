@@ -62,6 +62,7 @@ RUN ansible-playbook add_softlinks.yml
 # copy the reference information
 COPY podman_commands.txt /rhis/podman_commands.txt
 COPY rhis-builder_sample_commands.txt /rhis/rhis-builder_sample_commands.txt
+COPY sample_command.txt /rhis/sample_command.txt
 COPY README.md /rhis/README.md
 
 # copy the sample build scripts

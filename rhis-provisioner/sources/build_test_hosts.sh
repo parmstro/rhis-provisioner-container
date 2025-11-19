@@ -1,1 +1,1 @@
-ansible-playbook -i /rhis/vars/external_inventory/inventory -e "vault_dir=/rhis/vars/vault" -u ansiblerunner --ask-vault-pass --limit=provisioner /rhis/rhis-builder-pipelines/rhis_test_satellite.yml
+ansible-playbook -i /rhis/vars/external_inventory/inventory -e "vault_dir=/rhis/vars/vault" -e "platform_hosts={{ hg_test_hosts }}" -u ansiblerunner --limit=provisioner /rhis/rhis-builder-pipelines/rhis_build_from_provisioner.yml

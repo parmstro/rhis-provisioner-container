@@ -1,0 +1,13 @@
+ansible-core
+git
+vim
+python3
+python3-ipalib
+python3-gssapi
+python3-jmespath
+python3-pip
+bind-utils
+iputils
+bash-completion
+tmux
+jq

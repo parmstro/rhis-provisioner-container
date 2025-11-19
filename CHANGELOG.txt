@@ -1,0 +1,7 @@
+2025-11-18 - Added sample_command.txt to provide users to simply copy in the container.
+2025-11-19 - Update rhis_base Containerfile to accept a list of rpms in dnf_requirements.txt
+           - Created dnf_requirements.txt
+           - Added jq package to rpm list
+           - Pull in the latest rhis-builder updates for Satellite and AAP
+           - rebuild base
+           - rebuild provisioner

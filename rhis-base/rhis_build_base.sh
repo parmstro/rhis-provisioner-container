@@ -5,7 +5,7 @@ ansiblever="2.4"
 version_file="./version24.txt"
 version_mode="revision"
 
-nocache="false"
+nocache="true"
 buildargs=""
 ansiblecfg="/etc/ansible/ansible.cfg"
 push_registry="quay.io"
@@ -118,8 +118,8 @@ build_container() {
     podman login -u=$push_registry_login -p=$push_registry_token $push_registry
     podman tag localhost/rhis-base-9-$ansiblever:$version $push_registry/$push_repo/rhis-base-9-$ansiblever:$version
     podman tag localhost/rhis-base-9-$ansiblever:$version $push_registry/$push_repo/rhis-base-9-$ansiblever:latest
-    podman push $push_registry/$push_repo/rhis-provisioner-9-$ansiblever:$version
-    podman push $push_registry/$push_repo/rhis-provisioner-9-$ansiblever:latest
+    podman push $push_registry/$push_repo/rhis-base-9-$ansiblever:$version
+    podman push $push_registry/$push_repo/rhis-base-9-$ansiblever:latest
   fi
 }
 

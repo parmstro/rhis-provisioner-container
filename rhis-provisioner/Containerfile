@@ -32,32 +32,21 @@ COPY sources/ipareplica_test_patch.py /root/.ansible/collections/ansible_collect
 # add the rhis builder repos
 RUN mkdir -p /rhis
 WORKDIR /rhis
-RUN git clone https://github.com/parmstro/rhis-builder-idm.git
-RUN git clone https://github.com/parmstro/rhis-builder-satellite.git
-RUN git clone https://github.com/parmstro/rhis-builder-pipelines.git
-RUN git clone https://github.com/parmstro/rhis-builder-aap.git
-RUN git clone https://github.com/parmstro/rhis-builder-nbde.git
-RUN git clone https://github.com/parmstro/rhis-builder-day-2-ops.git
-RUN git clone https://github.com/parmstro/rhis-builder-ansible-ee.git
-RUN git clone https://github.com/parmstro/rhis-builder-imagebuilder.git
-RUN git clone https://github.com/parmstro/rhis-builder-yubi.git
-RUN git clone https://github.com/parmstro/rhis-builder-convert2rhel.git
-RUN git clone https://github.com/parmstro/rhis-builder-inventory.git
 
 # Now make the folders for group_vars, host_vars and inventory files
-RUN mkdir -p /rhis/vars/external_inventory
-RUN mkdir -p /rhis/vars/external_tasks
-RUN mkdir -p /rhis/vars/files
-RUN mkdir -p /rhis/vars/group_vars
-RUN mkdir -p /rhis/vars/host_vars
-RUN mkdir -p /rhis/vars/vars
-RUN mkdir -p /rhis/vars/vault
+RUN mkdir -p /rhis/vars/external_inventory && \
+    mkdir -p /rhis/vars/external_tasks && \
+    mkdir -p /rhis/vars/files && \
+    mkdir -p /rhis/vars/group_vars && \
+    mkdir -p /rhis/vars/host_vars && \
+    mkdir -p /rhis/vars/vars && \
+    mkdir -p /rhis/vars/vault
 
 # This cleans up the repo vars folders and links each project to our volume directories
 # we probably need to manage this for templates and files that we want to modify as well
-COPY add_softlinks.yml /rhis/add_softlinks.yml
-RUN chmod +x /rhis/add_softlinks.yml
-RUN ansible-playbook add_softlinks.yml
+COPY configure_rhis_builder.yml /rhis/configure_rhis_builder.yml
+RUN chmod +x /rhis/configure_rhis_builder.yml
+RUN ansible-playbook /rhis/configure_rhis_builder.yml
 
 # copy the reference information
 COPY podman_commands.txt /rhis/podman_commands.txt
@@ -67,25 +56,13 @@ COPY README.md /rhis/README.md
 
 # copy the sample build scripts
 COPY build_idm_primary.sh /rhis/build_idm_primary.sh
-RUN chmod +x /rhis/build_idm_primary.sh
-
 COPY build_idm_primary.sh /rhis/build_idm_replicas.sh
-RUN chmod +x /rhis/build_idm_replicas.sh
-
 COPY build_sat_primary_connected.sh /rhis/build_sat_primary_connected.sh
-RUN chmod +x /rhis/build_sat_primary_connected.sh
-
 COPY build_test_hosts.sh /rhis/build_test_hosts.sh
-RUN chmod +x /rhis/build_test_hosts.sh
-
 COPY destroy_test_hosts.sh /rhis/destroy_test_hosts.sh
-RUN chmod +x /rhis/destroy_test_hosts.sh
-
 COPY build_aap_controller24.sh /rhis/build_aap_controller24.sh
-RUN chmod +x /rhis/build_aap_controller24.sh
-
 COPY build_aap_controller24.sh /rhis/build_aap_hub24.sh
-RUN chmod +x /rhis/build_aap_hub24.sh
+RUN chmod +x /rhis/*.sh
 
 # Cleanup the ansible configuration
 COPY ansible.cfg.clean /etc/ansible/ansible.cfg

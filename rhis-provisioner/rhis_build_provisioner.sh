@@ -128,7 +128,7 @@ build_container() {
   echo "Configure sources"
   cp $ansiblecfg sources/ansible.cfg
   cp ansible.cfg.clean sources/ansible.cfg.clean
-  cp add_softlinks.yml sources/add_softlinks.yml
+  cp configure_rhis_builder.yml sources/configure_rhis_builder.yml
   cp rhis-builder_sample_commands.txt sources/rhis-builder_sample_commands.txt 
   cp build_idm_primary.sh sources/build_idm_primary.sh
   cp build_idm_replicas.sh sources/build_idm_replicas.sh

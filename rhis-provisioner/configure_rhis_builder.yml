@@ -1,6 +1,6 @@
 ---
 
-- name: "Override Example Organization directories"
+- name: "Configure rhis-builder projects"
   hosts: localhost
   gather_facts: false
   vars:
@@ -15,19 +15,50 @@
     default_vault_link: "/rhis/vars/vault"
     project_list:
       - name: "rhis-builder-idm"
+        repo: "https://github.com/parmstro/rhis-builder-idm.git"
+        purge: true
       - name: "rhis-builder-satellite"
+        repo: "https://github.com/parmstro/rhis-builder-satellite.git"
+        purge: true
       - name: "rhis-builder-pipelines"
+        repo: "https://github.com/parmstro/rhis-builder-pipelines.git"
+        purge: true
       - name: "rhis-builder-aap"
+        repo: "https://github.com/parmstro/rhis-builder-aap.git"
+        purge: true
       - name: "rhis-builder-day-2-ops"
+        repo: "https://github.com/parmstro/rhis-builder-day-2-ops.git"
+        purge: true
       - name: "rhis-builder-nbde"
+        repo: "https://github.com/parmstro/rhis-builder-nbde.git"
+        purge: true
       - name: "rhis-builder-imagebuilder"
+        repo: "https://github.com/parmstro/rhis-builder-imagebuilder.git"
+        purge: true
       - name: "rhis-builder-yubi"
+        repo: "https://github.com/parmstro/rhis-builder-yubi.git"
+        purge: true
       - name: "rhis-builder-convert2rhel"
-      # DO NOT INCLUDE rhis-builder-inventory... this is the definitive example directory
+        repo: "https://github.com/parmstro/rhis-builder-convert2rhel.git"
+        purge: true
+      - name: "rhis-builder-ansible-ee"
+        repo: "https://github.com/parmstro/rhis-builder-ansible-ee.git"
+        purge: true
 
   tasks:
 
+    - name: "Clone each of the project to the container"  # noqa git[latest]  we always want the latest main when we build the container.
+      ansible.builtin.git:
+        repo: "{{ project.repo }}"
+        dest: "{{ rhis_root_dir }}/{{ project.name }}"
+        clone: true
+        version: "main"
+      loop: "{{ project_list }}"
+      loop_control:
+        loop_var: project
+
     - name: "Delete any inventory for each project"
+      when: project.purge
       ansible.builtin.file:
         path: "{{ rhis_root_dir }}/{{ project.name }}/inventory"
         state: absent
@@ -36,6 +67,7 @@
         loop_var: project
 
     - name: "Link the inventory directory to the bind mount directory"
+      when: project.purge
       ansible.builtin.file:
         src: "{{ default_inventory_link }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}/inventory"
@@ -46,6 +78,7 @@
         loop_var: project
 
     - name: "Delete any external_tasks directory for each project"
+      when: project.purge
       ansible.builtin.file:
         path: "{{ rhis_root_dir }}/{{ project.name }}/external_tasks"
         state: absent
@@ -54,6 +87,7 @@
         loop_var: project
 
     - name: "Link the external_tasks directory to the bind mount directory"
+      when: project.purge
       ansible.builtin.file:
         src: "{{ default_external_tasks_link }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}/external_tasks"
@@ -64,6 +98,7 @@
         loop_var: project
 
     - name: "Delete the files directories for each project"
+      when: project.purge
       ansible.builtin.file:
         path: "{{ rhis_root_dir }}/{{ project.name }}/files"
         state: absent
@@ -72,6 +107,7 @@
         loop_var: project
 
     - name: "Link the files directory to the bind mount directory"
+      when: project.purge
       ansible.builtin.file:
         src: "{{ default_files_link }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}/files"
@@ -82,6 +118,7 @@
         loop_var: project
 
     - name: "Delete the group_vars directories for each project"
+      when: project.purge
       ansible.builtin.file:
         path: "{{ rhis_root_dir }}/{{ project.name }}/group_vars"
         state: absent
@@ -90,6 +127,7 @@
         loop_var: project
 
     - name: "Link the group_vars directory to the bind mount directory"
+      when: project.purge
       ansible.builtin.file:
         src: "{{ default_group_link }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}/group_vars"
@@ -100,6 +138,7 @@
         loop_var: project
 
     - name: "Delete the host_vars directories for each project"
+      when: project.purge
       ansible.builtin.file:
         path: "{{ rhis_root_dir }}/{{ project.name }}/host_vars"
         state: absent
@@ -108,6 +147,7 @@
         loop_var: project
 
     - name: "Link the host_vars directory to the bind mount directory"
+      when: project.purge
       ansible.builtin.file:
         src: "{{ default_host_link }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}/host_vars"
@@ -118,6 +158,7 @@
         loop_var: project
 
     - name: "Delete the templates directories for each project"
+      when: project.purge
       ansible.builtin.file:
         path: "{{ rhis_root_dir }}/{{ project.name }}/templates"
         state: absent
@@ -126,6 +167,7 @@
         loop_var: project
 
     - name: "Link the templates directory to the bind mount directory"
+      when: project.purge
       ansible.builtin.file:
         src: "{{ default_template_link }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}/templates"
@@ -137,6 +179,7 @@
         loop_var: project
 
     - name: "Delete any vars directory for each project"
+      when: project.purge
       ansible.builtin.file:
         path: "{{ rhis_root_dir }}/{{ project.name }}/vars"
         state: absent
@@ -145,6 +188,7 @@
         loop_var: project
 
     - name: "Link the vars directory to the bind mount directory"
+      when: project.purge
       ansible.builtin.file:
         src: "{{ default_vars_link }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}/vars"
@@ -155,6 +199,7 @@
         loop_var: project
 
     - name: "Delete any vault directory for each project"
+      when: project.purge
       ansible.builtin.file:
         path: "{{ rhis_root_dir }}/{{ project.name }}/vault"
         state: absent
@@ -163,6 +208,7 @@
         loop_var: project
 
     - name: "Link the inventory directory to the bind mount directory"
+      when: project.purge
       ansible.builtin.file:
         src: "{{ default_vault_link }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}/vault"

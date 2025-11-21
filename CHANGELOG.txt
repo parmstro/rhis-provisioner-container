@@ -5,3 +5,9 @@
            - Pull in the latest rhis-builder updates for Satellite and AAP
            - rebuild base
            - rebuild provisioner
+2025-11-20 - Update project handling in provisoner Containerfile.
+           - no longer import the example.ca configuration
+           - swapped add_softlinks.yml for configure_rhis_builder.yml - allow container builders to choose projects
+           - some layer optimization
+           - "the big purge" - we are now fully on rhis-builder-inventory
+END

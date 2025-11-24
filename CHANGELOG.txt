@@ -17,4 +17,9 @@
            - somebody forgot to synch changes... so rev++
            - built 9-2.4 1.0.46
            - build 9-2.5 1.0.21
+2025-11-24 - updates to schema - idm idp references
+           - updates and rename to idm_idp_references
+           - tested idm_idp_references with Azure AWS to IdM
+           - built 9-2.4 1.0.47
+           - build 9-2.5 1.0.22
 END

@@ -10,4 +10,11 @@
            - swapped add_softlinks.yml for configure_rhis_builder.yml - allow container builders to choose projects
            - some layer optimization
            - "the big purge" - we are now fully on rhis-builder-inventory
+2025-11-23 - ansible retagging in rhis-builder-idm
+           - rhis-builder-idm tags_idm_post_install check passed
+           - ensure limit checking on all modules
+           - fix idm_harden bug
+           - somebody forgot to synch changes... so rev++
+           - built 9-2.4 1.0.46
+           - build 9-2.5 1.0.21
 END

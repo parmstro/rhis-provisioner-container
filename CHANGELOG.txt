@@ -26,4 +26,11 @@
            - bug fix for bad pull repo handling
            - build 9-2.4 1.0.50
            - build 9-2.5 1.0.23
+2025-11-27 - build on rhis-base-9-2.x:1.0.7
+           - better handling for disconnected 
+           - added satellite_post tasks for disconnected 
+           - added control for post install tasks not run for disconnected
+           - note: currently you need to have a default gateway configured for your disconnected satellite - even if bogus
+           - build 9-2.4 1.0.52
+           - build 9-2.5 1.0.24
 END

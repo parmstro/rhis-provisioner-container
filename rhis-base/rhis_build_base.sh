@@ -9,7 +9,7 @@ nocache="true"
 buildargs=""
 ansiblecfg="/etc/ansible/ansible.cfg"
 push_registry="quay.io"
-push_repo="parmstro"
+push_registry_repo="parmstro"
 push_registry_login=""
 push_registry_token=""
 
@@ -116,10 +116,10 @@ build_container() {
 
   if [[ -n "$push_registry" && -n "$push_registry_login" && -n "$push_registry_token" ]]; then
     podman login -u=$push_registry_login -p=$push_registry_token $push_registry
-    podman tag localhost/rhis-base-9-$ansiblever:$version $push_registry/$push_repo/rhis-base-9-$ansiblever:$version
-    podman tag localhost/rhis-base-9-$ansiblever:$version $push_registry/$push_repo/rhis-base-9-$ansiblever:latest
-    podman push $push_registry/$push_repo/rhis-base-9-$ansiblever:$version
-    podman push $push_registry/$push_repo/rhis-base-9-$ansiblever:latest
+    podman tag localhost/rhis-base-9-$ansiblever:$version $push_registry/$push_registry_repo/rhis-base-9-$ansiblever:$version
+    podman tag localhost/rhis-base-9-$ansiblever:$version $push_registry/$push_registry_repo/rhis-base-9-$ansiblever:latest
+    podman push $push_registry/$push_registry_repo/rhis-base-9-$ansiblever:$version
+    podman push $push_registry/$push_registry_repo/rhis-base-9-$ansiblever:latest
   fi
 }
 

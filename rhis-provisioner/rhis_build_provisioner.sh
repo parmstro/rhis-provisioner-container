@@ -13,13 +13,13 @@ nocache="false"
 buildargs=""
 ansiblecfg="/etc/ansible/ansible.cfg"
 
-pull_registry="localhost"
-pull_repo=""
+pull_registry="quay.io"
+pull_registry_repo="parmstro"
 pull_registry_login=""
 pull_registry_token=""
 
 push_registry="quay.io"
-push_repo="parmstro"
+push_registry_repo="parmstro"
 push_registry_login=""
 push_registry_token=""
 
@@ -105,12 +105,14 @@ build_container() {
   echo "Ensuring ansible and podman requirements are installed..."
   sudo dnf -y install ansible-core podman
 
-  if [[ -n "$pull_registry" && -n "$pull_registry_login" && -n "$pull_registry_token" ]]; then
+  if [[ -n "$pull_registry" && -n "$pull_registry_repo" ]]; then
     echo "Using $pull_registry as the pull registry. Logging in."
-    podman login $pull_registry -u $pull_registry_login -p $pull_registry_token
-    if [[ -n "$pull_registry" && -n "$pull_registry_repo" ]]; then
-      pull_path="$pull_registry/$pull_registry_repo"
+    if [[ -n "$pull_registry_login" && -n "$pull_registry_token" ]]; then
+      echo "$pull_registry requires login. Logging in with provided credentials."
+      podman login $pull_registry -u $pull_registry_login -p $pull_registry_token
     fi
+    echo "Setting pull path"
+    pull_path="$pull_registry/$pull_registry_repo"
   else
     echo "pull_registry parameters not defined. Continuing with localhost."
     pull_path="$pull_registry"
@@ -166,10 +168,10 @@ build_container() {
 
   if [[ $push_registry && $push_registry_login && $push_registry_token ]]; then
     podman login -u=$push_registry_login -p=$push_registry_token $push_registry
-    podman tag localhost/rhis-provisioner-9-$ansiblever:$version $push_registry/$push_repo/rhis-provisioner-9-$ansiblever:$version
-    podman tag localhost/rhis-provisioner-9-$ansiblever:$version $push_registry/$push_repo/rhis-provisioner-9-$ansiblever:latest
-    podman push $push_registry/$push_repo/rhis-provisioner-9-$ansiblever:$version
-    podman push $push_registry/$push_repo/rhis-provisioner-9-$ansiblever:latest
+    podman tag localhost/rhis-provisioner-9-$ansiblever:$version $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:$version
+    podman tag localhost/rhis-provisioner-9-$ansiblever:$version $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:latest
+    podman push $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:$version
+    podman push $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:latest
   fi
 }
 

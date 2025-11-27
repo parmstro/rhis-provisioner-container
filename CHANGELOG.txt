@@ -20,6 +20,10 @@
 2025-11-24 - updates to schema - idm idp references
            - updates and rename to idm_idp_references
            - tested idm_idp_references with Azure AWS to IdM
-           - built 9-2.4 1.0.47
+           - build 9-2.4 1.0.47
            - build 9-2.5 1.0.22
+2025-11-26 - updated to add satellite_disconnected_pre role
+           - bug fix for bad pull repo handling
+           - build 9-2.4 1.0.50
+           - build 9-2.5 1.0.23
 END

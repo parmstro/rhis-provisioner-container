@@ -217,3 +217,13 @@
       loop: "{{ project_list }}"
       loop_control:
         loop_var: project
+
+    - name: "Delete any vault files for rhis-builder-inventory"
+      ansible.builtin.file:
+        path: "{{ rhis_root_dir }}/rhis-builder-inventory/vault"
+        state: absent
+
+    - name: "Delete any vault files for rhis-builder-inventory"
+      ansible.builtin.file:
+        path: "{{ rhis_root_dir }}/rhis-builder-pipelines/vmware/vars/vault.yml"
+        state: absent

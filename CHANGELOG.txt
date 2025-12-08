@@ -31,6 +31,12 @@
            - added satellite_post tasks for disconnected 
            - added control for post install tasks not run for disconnected
            - note: currently you need to have a default gateway configured for your disconnected satellite - even if bogus
-           - build 9-2.4 1.0.52
-           - build 9-2.5 1.0.24
+           - change satellite install to import_role and apply tags to inherit
+           - build 9-2.4 1.0.53
+           - build 9-2.5 1.0.25
+2025-12-01 - some forgetful person forgot the args for the install_packages 
+           - build 9-2.4 1.0.55
+2025-12-07 - ensure our test vault files aren't in the container. Not secret, but bad form.
+           - build 9-2.4 1.0.64
+           - build 9-2.5 1.0.31
 END

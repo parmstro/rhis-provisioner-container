@@ -49,19 +49,23 @@ RUN chmod +x /rhis/configure_rhis_builder.yml
 RUN ansible-playbook /rhis/configure_rhis_builder.yml
 
 # copy the reference information
-COPY podman_commands.txt /rhis/podman_commands.txt
-COPY rhis-builder_sample_commands.txt /rhis/rhis-builder_sample_commands.txt
-COPY sample_command.txt /rhis/sample_command.txt
+# COPY podman_commands.txt /rhis/podman_commands.txt
+# COPY rhis-builder_sample_commands.txt /rhis/rhis-builder_sample_commands.txt
+# COPY sample_command.txt /rhis/sample_command.txt
+COPY *.txt /rhis/
 COPY README.md /rhis/README.md
 
 # copy the sample build scripts
-COPY build_idm_primary.sh /rhis/build_idm_primary.sh
-COPY build_idm_primary.sh /rhis/build_idm_replicas.sh
-COPY build_sat_primary_connected.sh /rhis/build_sat_primary_connected.sh
-COPY build_test_hosts.sh /rhis/build_test_hosts.sh
-COPY destroy_test_hosts.sh /rhis/destroy_test_hosts.sh
-COPY build_aap_controller24.sh /rhis/build_aap_controller24.sh
-COPY build_aap_controller24.sh /rhis/build_aap_hub24.sh
+# COPY build_idm_primary.sh /rhis/build_idm_primary.sh
+# COPY build_idm_primary.sh /rhis/build_idm_replicas.sh
+# COPY build_sat_primary_connected.sh /rhis/build_sat_primary_connected.sh
+# COPY build_test_hosts.sh /rhis/build_test_hosts.sh
+# COPY destroy_test_hosts.sh /rhis/destroy_test_hosts.sh
+# COPY build_aap24_hosts.sh /rhis/build_aap24_hosts.sh
+# COPY build_aap24_controller.sh /rhis/build_aap24_controller.sh
+# COPY build_aap24_hub.sh /rhis/build_aap24_hub.sh
+COPY build_* /rhis/
+COPY destroy_* /rhis/
 RUN chmod +x /rhis/*.sh
 
 # Cleanup the ansible configuration

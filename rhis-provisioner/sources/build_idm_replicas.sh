@@ -1,3 +1,13 @@
 #!/bin/bash
 
-ansible-playbook -i /rhis/vars/external_inventory/inventory -e "vault_dir=/rhis/vars/vault" -u ansiblerunner --ask-pass --ask-vault-pass --limit=idm_replicas /rhis/rhis-builder-idm/replicas_main.yml
+echo "Using rhis-builder-idm to build idm_replicas from default inventory"
+
+cd /rhis/rhis-builder-idm/
+
+ansible-playbook -i /rhis/vars/external_inventory/inventory \
+                 -e "vault_dir=/rhis/vars/vault" \
+                 -u ansiblerunner \
+                 --ask-pass \
+                 --ask-vault-pass \
+                 --limit=idm_replicas \
+                 replicas_main.yml

@@ -137,8 +137,9 @@ build_container() {
   cp build_sat_primary_connected.sh sources/build_sat_primary_connected.sh
   cp build_test_hosts.sh sources/build_test_hosts.sh
   cp destroy_test_hosts.sh sources/destroy_test_hosts.sh
-  cp build_aap_controller24.sh sources/build_aap_controller24.sh
-  cp build_aap_hub24.sh sources/build_aap_hub24.sh
+  cp build_aap24_hosts.sh sources/build_aap24_hosts.sh
+  cp build_aap24_controller.sh sources/build_aap24_controller.sh
+  cp build_aap24_hub.sh sources/build_aap24_hub.sh
   cp README.md sources/README.md
 
   cp ipareplica_test_patch.py sources/ipareplica_test_patch.py

@@ -111,7 +111,7 @@ build_container() {
     buildargs+=" --no-cache"
   fi
 
-  podman build $buildargs --squash -t rhis-base-9-$ansiblever:$version .
+  podman build $buildargs --squash-all -t rhis-base-9-$ansiblever:$version .
   podman tag localhost/rhis-base-9-$ansiblever:$version rhis-base-9-$ansiblever:latest
 
   if [[ -n "$push_registry" && -n "$push_registry_login" && -n "$push_registry_token" ]]; then

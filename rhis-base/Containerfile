@@ -48,7 +48,7 @@ RUN ansible-galaxy collection install redhat.rhel_idm
 RUN ansible-galaxy collection install redhat.rhel_system_roles
 RUN ansible-galaxy collection install redhat.satellite
 RUN ansible-galaxy collection install redhat.satellite_operations
-
+RUN ansible-galaxy collection install vmware.vmware
 
 # For optimized build
 # This runs long and can fail in the middle 

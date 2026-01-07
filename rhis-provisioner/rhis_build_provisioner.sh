@@ -140,6 +140,7 @@ build_container() {
   cp build_aap24_hosts.sh sources/build_aap24_hosts.sh
   cp build_aap24_controller.sh sources/build_aap24_controller.sh
   cp build_aap24_hub.sh sources/build_aap24_hub.sh
+  cp apply_aap_platform_post.sh sources/apply_aap_platform_post.sh
   cp README.md sources/README.md
 
   cp ipareplica_test_patch.py sources/ipareplica_test_patch.py

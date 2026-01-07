@@ -32,3 +32,5 @@ collections:
     version: "*"
   - name: "redhat.satellite_operations"
     version: "*"
+  - name: "vmware.vmware"
+    version: "*"

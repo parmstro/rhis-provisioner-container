@@ -18,8 +18,9 @@ ENV BASE_VER=${RHIS_BASE_VER}
 ENV SCHEMA_VER=${RHIS_SCHEMA_VER}
 ENV BUILD=${RHIS_BUILD}
 
+MAINTAINER parmstro@redhat.com
 LABEL maintainer="Paul Armstrong <github:@parmstro>"
-LABEL contributors="Paul Armstrong <github:@parmstro>, John Berninger <github:@jwbernin>, Cory McKee <github:@cojmckee>, Mike Savage <github:@heatmiser>, Charles Shaw <github: @shawkingly>, Bryn Swan <github: @turtlesrock>" 
+LABEL contributors="Paul Armstrong <github:@parmstro>, John Berninger <github:@jwbernin>, Cory McKee <github:@cojmckee>, Mike Savage <github:@heatmiser>, Charles Shaw <github: @shawkingly>, Bryn Swan <github: @turtlesrock>, Charles Long <github: @mrclong>"
 LABEL description="The rhis-provisioner container is built from rhel ubi9 and the rhis-builder set of repositories. It is design to make easy to implement the Red Hat Infrastructure Standard."
 LABEL summary="Provides the latest build of rhis-builder repositories."
 
@@ -64,8 +65,7 @@ COPY README.md /rhis/README.md
 # COPY build_aap24_hosts.sh /rhis/build_aap24_hosts.sh
 # COPY build_aap24_controller.sh /rhis/build_aap24_controller.sh
 # COPY build_aap24_hub.sh /rhis/build_aap24_hub.sh
-COPY build_* /rhis/
-COPY destroy_* /rhis/
+COPY *.sh /rhis/
 RUN chmod +x /rhis/*.sh
 
 # Cleanup the ansible configuration

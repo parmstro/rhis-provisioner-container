@@ -6,6 +6,9 @@ LABEL description="The rhis-base container is built from rhel ubi9 and includes 
 LABEL summary="Provides the latest rhis-builder dependencies."
 # rpm requirements
 
+ENV ANSIBLE_VERSION=${ANSIBLE_VER}
+ENV OS_VERSION=${OS_VER}
+ENV RHIS_VERSION=${RHIS_VER}
 
 # Copy the requirements file into the container
 COPY dnf_requirements.txt /tmp/dnf_requirements.txt
@@ -37,19 +40,20 @@ RUN if [[ $ANSIBLE_VER == "2.5" ]]; then \
     fi
 
 # install the remaining non-ansible-version dependent collections
-RUN ansible-galaxy collection install ansible.netcommon
-RUN ansible-galaxy collection install ansible.posix
-RUN ansible-galaxy collection install azure.azcollection
-RUN ansible-galaxy collection install community.aws
-RUN ansible-galaxy collection install community.crypto
-RUN ansible-galaxy collection install community.general
-RUN ansible-galaxy collection install community.vmware
-RUN ansible-galaxy collection install containers.podman
-RUN ansible-galaxy collection install redhat.rhel_idm
-RUN ansible-galaxy collection install redhat.rhel_system_roles
-RUN ansible-galaxy collection install redhat.satellite
-RUN ansible-galaxy collection install redhat.satellite_operations
-RUN ansible-galaxy collection install vmware.vmware
+COPY sources/requirements.yml /tmp/requirements.yml
+RUN ansible-galaxy collection install -r /tmp/requirements.yml
+# RUN ansible-galaxy collection install ansible.posix
+# RUN ansible-galaxy collection install azure.azcollection
+# RUN ansible-galaxy collection install community.aws
+# RUN ansible-galaxy collection install community.crypto
+# RUN ansible-galaxy collection install community.general
+# RUN ansible-galaxy collection install community.vmware
+# RUN ansible-galaxy collection install containers.podman
+# RUN ansible-galaxy collection install redhat.rhel_idm
+# RUN ansible-galaxy collection install redhat.rhel_system_roles
+# RUN ansible-galaxy collection install redhat.satellite
+# RUN ansible-galaxy collection install redhat.satellite_operations
+# RUN ansible-galaxy collection install vmware.vmware
 
 # For optimized build
 # This runs long and can fail in the middle 

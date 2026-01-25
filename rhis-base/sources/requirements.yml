@@ -3,26 +3,25 @@
 # ansible.controller is dependent on the version of ansible!!!
 # this is managed in the Containerfile
 
+# these collections are compatible with ansible core 2.14.18 shipping with rhel 9.7
 collections:
   - name: "ansible.utils"
-    version: "*"
+    version: "<6.0.0"
   - name: "ansible.posix"
-    version: "*"
+    version: "<1.6.0"
   - name: "ansible.netcommon"
-    version: "*"
-  - name: "ansible.controller"
-    version: "<4.6"              # CHANGES HERE for AAP 2.4
+    version: "<7.0.0"
   - name: "azure.azcollection"
-    version: "*"
+    version: "<2.6.0"
   - name: "community.aws"
-    version: "*"
+    version: "<8.0.0"
   - name: "community.crypto"
-    version: "*"
+    version: "<3.0.0"
   - name: "community.general"
-    version: "*"
+    version: "<10.0.0"
   - name: "community.vmware"
-    version: "*"
-  - name: "containers.podman"
+    version: "<4.0.0"
+  - name: "containers.podman"    # Yay! actually only requires ansible-core 2.8
     version: "*"
   - name: "redhat.rhel_idm"
     version: ">=1.14.7"           # earlier versions fail with 'dns_over_tls' option error

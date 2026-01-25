@@ -46,4 +46,10 @@
            - TODO: create project directories for templates, update projects
            - build 9-2.4 1.0.76
            - build 9-2.5 1.0.39
+2025-01-25 - discovered incompatibilities with new versions of collections vs. ansible-core in rhel 9
+           - fixes in rhis-builder-idm and rhis-builder-satellite
+           - build base 9-2.4 1.0.10
+           - build base 9-2.5 1.0.10
+           - build 9-2.4 1.0.84
+           - build 9-2.4 1.0.46
 END

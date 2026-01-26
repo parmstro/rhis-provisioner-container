@@ -11,3 +11,4 @@ iputils
 bash-completion
 tmux
 jq
+rsync

@@ -12,12 +12,15 @@ podman pull quay.io/parmstro/rhis-provision-9-2.5:latest
 
 NEXT.
 
-You should still download and run the code in the [rhis-builder-provisioner](https://github.com/parmstro/rhis-builder-provisioner) repo! The rhis-builder-provisioner repo will set up your provisioner node with this project as well as the example.ca configuration and inventory project - [rhis-builder-inventory](https://github.com/parmstro/rhis-builder-inventory). 
-
-The rhis-provisioner container simplifies getting started with the Red Hat Infrastructure Standard and rhis-builder.
-
+The rhis-provisioner container simplifies getting started with the Red Hat Infrastructure Standard and rhis-builder. 
 The container is designed to have all the projects, dependencies and examples for building a Red Hat Infrastructure Standard environment.
-This current container build is defaults to include dependencies for AAP 2.4. If you require the container to build for AAP 2.5, pass the appropriate arg to the rhis_build_base.sh  and rhis_build_provisioner scripts.
+The rhis-provisioner container provides the interactive provisioner environment for building an infrastructure based on the RH-ISAM.
+When launched, the container mounts your configuration and provides a command line access to the ansible playbooks that are used to build the infrastructure and manage it day 2 (see the example.ca.24.sh script in the inventory project below). 
+All you need is git and podman on your system and then pull the container. 
+
+Then go get the sample configuration from [rhis-builder-inventory](https://github.com/parmstro/rhis-builder-inventory)
+
+If you want to contribute to the container or extend it for your own projects, read on.
 
 ### Building the containers.
 
@@ -27,9 +30,11 @@ The rhis-proivsioner container build is separated into two parts.
 
 We always build a base image using ubi9:latest and add the ansible collections and related dependencies. This is the rhis-base container. There is a version for AAP 2.4 and AAP 2.5 as these different AAP versions have non-compatible ansible collections. This can take some time and the collections change much slower than some of the advances in RHIS, so avoiding building this every time speeds your development process.
 
-We then build the rhis-provisioner container. Again a AAP 2.4 version and AAP 2.5 version from the respective base. This is a quick build that adds all the rhis-builder repos into the container and sets the environment to read either the example.ca sample from rhis-builder-inventory or your customized version of it.
+We then build the rhis-provisioner container. Again a AAP 2.4 version and AAP 2.5 version from the respective base. This is a quick build that adds all the rhis-builder repos into the container and sets the environment to read either the example.ca sample from rhis-builder-inventory or your customized version of it. This current container build script defaults to include dependencies for AAP 2.4. If you require the container to build for AAP 2.5, pass the appropriate arg to the rhis_build_base.sh  and rhis_build_provisioner scripts.
 
 For customization of the configuration, clone the rhis-builder-inventory project and then copy the contents to a new directory and then push it to a private git repo of your choice. You can then (relatively) safely store your configuration in a confidential fashion. Follow all the recommendations about vaulting secrets and avoid pushing confidential content to any git repo.
+
+**NOTE**: There is a simple way to extend the container by including your own playbooks in the external_tasks directory under the rhis-builder-inventory when you launch your container!
 
 The rhis-provisioner container is designed to provide the interactive provisioner environment for building an infrastructure base on the RH-ISAM.
 
@@ -125,9 +130,10 @@ For example, if you used rhis-builder-provisioner to prepare your provisioner no
                    --vars-dir ~/rhis/rhis-builder-inventory/example.ca/templates \
                    --ansible-ver 2.5
 
-## NOTE: Your configuration files must include the appropriate references to synchronize and load the appropriate 2.5 content!
-
+## NOTE: Your configuration files must include the appropriate 
+## references to synchronize and load the appropriate 2.5 content!
 ~~~
+The example.ca.24.sh and example.ca.25.sh in the inventory porject are setup to run this for run_container.sh for you with similar parameters to the above. See the inventory project.
 
 Once you are comfortable navigating the projects, you can build your own configurations and launch the script with all the parameters.
 This is where you will build your own RHIS environment.

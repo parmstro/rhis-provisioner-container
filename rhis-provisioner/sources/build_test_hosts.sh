@@ -7,8 +7,6 @@ echo "CTRL+C to exit"
 sleep 15
 
 echo "Beginning builds..."
-cd /rhis/rhis-builder-pipelines/
-
 ansible-playbook -i /rhis/vars/external_inventory/inventory \
                  -e "vault_dir=/rhis/vars/vault" \
                  -e "platform_hosts={{ hostgroup_test_hosts_rhel8 }}" \
@@ -23,9 +21,6 @@ echo "CTRL+C to exit"
 sleep 15
 
 echo "Beginning builds..."
-
-cd /rhis/rhis-builder-pipelines/
-
 ansible-playbook -i /rhis/vars/external_inventory/inventory \
                  -e "vault_dir=/rhis/vars/vault" \
                  -e "platform_hosts={{ hostgroup_test_hosts_rhel9 }}" \
@@ -40,12 +35,11 @@ echo "CTRL+C to exit"
 sleep 15
 
 echo "Beginning builds..."
-
-cd /rhis/rhis-builder-pipelines/
-
 ansible-playbook -i /rhis/vars/external_inventory/inventory \
                  -e "vault_dir=/rhis/vars/vault" \
                  -e "platform_hosts={{ hostgroup_test_hosts_rhel10 }}" \
                  -u ansiblerunner \
                  --limit=provisioner \
                  rhis_build_from_provisioner.yml
+
+echo "Builds Complete."

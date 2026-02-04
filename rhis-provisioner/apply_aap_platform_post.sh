@@ -2,8 +2,6 @@
 
 echo "Using rhis-builder-aap to run post configuration using the default inventory"
 
-cd /rhis/rhis-builder-aap/
-
 ansible-playbook --inventory /rhis/vars/external_inventory/inventory \
                  --user ansiblerunner \
                  --ask-pass \

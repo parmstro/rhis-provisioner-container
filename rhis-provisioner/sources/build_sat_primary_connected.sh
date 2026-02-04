@@ -2,8 +2,6 @@
 
 echo "Using rhis-builder-satellite to build sat_primary from default inventory"
 
-cd /rhis/rhis-builder-satellite/
-
 ansible-playbook -i /rhis/vars/external_inventory/inventory \
                  -e "vault_dir=/rhis/vars/vault" \
                  -u ansiblerunner \

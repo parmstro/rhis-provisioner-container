@@ -7,5 +7,5 @@ ansible-playbook -i /rhis/vars/external_inventory/inventory \
                  -u ansiblerunner \
                  --ask-pass \
                  --ask-vault-pass \
-                 --limit=sat_primary \
-                 main.yml
+                 --limit=sat_capsules \
+                 capsules_main.yml

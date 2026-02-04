@@ -20,6 +20,10 @@ All you need is git and podman on your system and then pull the container.
 
 Then go get the sample configuration from [rhis-builder-inventory](https://github.com/parmstro/rhis-builder-inventory)
 
+#### Deprecation Notes:
+
+**rhis-builder-ndbe and the tang_container role have been deprecated.** The functionality has been replaced by **rhis-builder-quadlet-deploy**. The new repo will deploy the tang container. You will need to add three new variables to your container definition that manage the validation of the deployment. See the new example in the rhis-builder-inventory project. rhis-builder-nbde will not be included in container builds >2.0.0
+
 If you want to contribute to the container or extend it for your own projects, read on.
 
 ### Building the containers.

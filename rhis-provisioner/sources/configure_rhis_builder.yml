@@ -44,6 +44,9 @@
       - name: "rhis-builder-ansible-ee"
         repo: "https://github.com/parmstro/rhis-builder-ansible-ee.git"
         purge: true
+      - name: "rhis-builder-quadlet-deploy"
+        repo: "https://github.com/parmstro/rhis-builder-quadlet-deploy.git"
+        purge: true
 
   tasks:
 

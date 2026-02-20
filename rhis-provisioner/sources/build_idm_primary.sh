@@ -7,5 +7,5 @@ ansible-playbook -i /rhis/vars/external_inventory/inventory \
                  -u ansiblerunner \
                  --ask-pass \
                  --ask-vault-pass \
-                 --limit=idm_primary
+                 --limit=idm_primary \
                  main.yml

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Using rhis-builder-idm to build idm_primary from default inventory"
+echo "Using Satellite to build AAP hosts defined in list aap25_hosts defined in group_vars/provisioner/aap25_hosts.yml"
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color/Normal
 printf "${GREEN}Start Time: %(%T)T${NC}\n" -1
@@ -8,11 +8,10 @@ SECONDS=0
 
 ansible-playbook -i /rhis/vars/external_inventory/inventory \
                  -e "vault_dir=/rhis/vars/vault" \
+                 -e "platform_hosts={{ aap25_hosts }}" \
                  -u ansiblerunner \
-                 --ask-pass \
-                 --ask-vault-pass \
-                 --limit=idm_primary \
-                 main.yml
+                 --limit=provisioner \
+                 rhis_build_from_provisioner.yml
 
 duration=$SECONDS
 printf "\n${GREEN}End Time: %(%T)T${NC}\n" -1

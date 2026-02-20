@@ -1,17 +1,17 @@
 #!/bin/bash
 
-echo "Using rhis-builder-idm to build idm_primary from default inventory"
+echo "Using rhis-builder-aap to build AAP 2.5 hub from standalone hub24 inventory"
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color/Normal
 printf "${GREEN}Start Time: %(%T)T${NC}\n" -1
 SECONDS=0
 
-ansible-playbook -i /rhis/vars/external_inventory/inventory \
-                 -e "vault_dir=/rhis/vars/vault" \
-                 -u ansiblerunner \
+ansible-playbook --inventory /rhis/vars/external_inventory/inventory_standalone_hub25 \
+                 --user ansiblerunner \
                  --ask-pass \
                  --ask-vault-pass \
-                 --limit=idm_primary \
+                 --extra-vars "vault_dir=/rhis/vars/vault" \
+                 --limit=platform_installer \
                  main.yml
 
 duration=$SECONDS

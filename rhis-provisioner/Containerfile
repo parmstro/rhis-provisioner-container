@@ -59,19 +59,22 @@ COPY README.md /rhis/README.md
 # copy the sample build scripts
 COPY build_idm_primary.sh /rhis/rhis-builder-idm/build_idm_primary.sh
 COPY build_sat_primary_connected.sh /rhis/rhis-builder-satellite/build_sat_primary_connected.sh
-COPY deploy_test_hosts.sh /rhis/rhis-builder-pipelines/deploy_test_hosts.sh
-COPY destroy_test_hosts.sh /rhis/rhis-builder-pipelines/destroy_test_hosts.sh
-COPY deploy_sat_capsule_hosts.sh /rhis/rhis-builder-pipelines/deploy_sat_capsule_hosts.sh
-COPY deploy_idm_replica_hosts.sh /rhis/rhis-builder-pipelines/deploy_idm_replica_hosts.sh
-COPY deploy_aap24_hosts.sh /rhis/rhis-builder-pipelines/deploy_aap24_hosts.sh
-COPY deploy_aap25_hosts.sh /rhis/rhis-builder-pipelines/deploy_aap25_hosts.sh
-COPY deploy_quadlet_hosts.sh /rhis/rhis-builder-pipelines/deploy_quadlet_hosts.sh
+COPY build_sat_capsules_pre.sh /rhis/rhis-builder-satellite/build_sat_capsules_pre.sh
 COPY build_sat_capsules.sh /rhis/rhis-builder-satellite/build_sat_capsules.sh
 COPY build_idm_replicas.sh /rhis/rhis-builder-idm/build_idm_replicas.sh
 COPY build_aap24_controller.sh /rhis/rhis-builder-aap/build_aap24_controller.sh
 COPY build_aap24_hub.sh /rhis/rhis-builder-aap/build_aap24_hub.sh
 COPY build_aap25_controller.sh /rhis/rhis-builder-aap/build_aap25_controller.sh
 COPY build_aap25_hub.sh /rhis/rhis-builder-aap/build_aap25_hub.sh
+COPY deploy_rhel8_test_hosts.sh /rhis/rhis-builder-pipelines/deploy_rhel8_test_hosts.sh
+COPY deploy_rhel9_test_hosts.sh /rhis/rhis-builder-pipelines/deploy_rhel9_test_hosts.sh
+COPY deploy_rhel10_test_hosts.sh /rhis/rhis-builder-pipelines/deploy_rhel10_test_hosts.sh
+COPY deploy_quadlet_hosts.sh /rhis/rhis-builder-pipelines/deploy_quadlet_hosts.sh
+COPY deploy_sat_capsule_hosts.sh /rhis/rhis-builder-pipelines/deploy_sat_capsule_hosts.sh
+COPY deploy_idm_replica_hosts.sh /rhis/rhis-builder-pipelines/deploy_idm_replica_hosts.sh
+COPY deploy_aap24_hosts.sh /rhis/rhis-builder-pipelines/deploy_aap24_hosts.sh
+COPY deploy_aap25_hosts.sh /rhis/rhis-builder-pipelines/deploy_aap25_hosts.sh
+COPY destroy_test_hosts.sh /rhis/rhis-builder-pipelines/destroy_test_hosts.sh
 
 # COPY *.sh /rhis/
 RUN chmod +x /rhis/*/*.sh

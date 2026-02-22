@@ -10,6 +10,8 @@ ansible-playbook -i /rhis/vars/external_inventory/inventory \
                  -e "vault_dir=/rhis/vars/vault" \
                  -e "platform_hosts={{ idm_replica_hosts }}" \
                  -u ansiblerunner \
+                 --ask-pass \
+                 --ask-vault-password \
                  --limit=provisioner \
                  rhis_build_from_provisioner.yml
 

@@ -46,13 +46,13 @@
            - TODO: create project directories for templates, update projects
            - build 9-2.4 1.0.76
            - build 9-2.5 1.0.39
-2025-01-25 - discovered incompatibilities with new versions of collections vs. ansible-core in rhel 9
+2026-01-25 - discovered incompatibilities with new versions of collections vs. ansible-core in rhel 9
            - fixes in rhis-builder-idm and rhis-builder-satellite
            - build base 9-2.4 1.0.10
            - build base 9-2.5 1.0.10
            - build 9-2.4 1.0.84
            - build 9-2.5 1.0.46
-2025-01-26 - add rsync to base (PR7)
+2026-01-26 - add rsync to base (PR7)
            - build base 9-2.4 1.0.11
            - build base 9-2.5 1.0.11
            - build 9-2.4 1.0.85
@@ -62,9 +62,15 @@
            - TODO: add quadlet host builds for tang servers
            - build 9-2.4 1.0.86
            - build 9-2.5 1.0.48
-2025-02-04 - Add rhis-builder-quadlet-deploy - tested with rhel9/tang:latest and NBDE for clevis2.example.ca
+2026-02-04 - Add rhis-builder-quadlet-deploy - tested with rhel9/tang:latest and NBDE for clevis2.example.ca
            - This deprecates rhis-builder-nbde as it normalized the functionality to deploy any container as a quadlet
            - This currently is untested with pods
            - build 9-2.4 1.0.90
            - build 9-2.5 1.0.52
+2026-02-27 - Fixed the dates in this file in recognition of the New Year... only took 2 months this time
+           - Updated and fixed Satellite capsule deploy
+           - Certificate processing fixes
+           - Added fixes for trusted_hosts
+           - build 9-2.4 1.0.97
+           - build 9-2.5 1.0.59
 END

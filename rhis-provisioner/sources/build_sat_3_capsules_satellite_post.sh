@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Using rhis-builder-satellite to run Satellite Capsule pre configuration using the default inventory"
+echo "Capsules Step 3: Using rhis-builder-satellite to run the Satellite post-configuration for Capsules using the default inventory"
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color/Normal
 printf "${GREEN}Start Time: %(%T)T${NC}\n" -1
@@ -12,8 +12,7 @@ ansible-playbook --inventory /rhis/vars/external_inventory/inventory \
                  --ask-vault-pass \
                  --extra-vars "vault_dir=/rhis/vars/vault" \
                  --limit=sat_primary \
-                 --extra-vars "role_name=capsule_satellite_pre" \
-                 run_role.yml
+                 capsules_satellite_post.yml
 
 duration=$SECONDS
 printf "\n${GREEN}End Time: %(%T)T${NC}\n" -1

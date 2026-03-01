@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Using rhis-builder-satellite to build sat_capsules from default inventory"
+echo "Capsules Step 2: Using rhis-builder-satellite to run Capsule pre-requisites, installation, and post-configuration roles on capsules in the default inventory"
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color/Normal
 printf "${GREEN}Start Time: %(%T)T${NC}\n" -1

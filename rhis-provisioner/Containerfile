@@ -59,8 +59,10 @@ COPY README.md /rhis/README.md
 # copy the sample build scripts
 COPY build_idm_primary.sh /rhis/rhis-builder-idm/build_idm_primary.sh
 COPY build_sat_primary_connected.sh /rhis/rhis-builder-satellite/build_sat_primary_connected.sh
-COPY build_sat_capsules_pre.sh /rhis/rhis-builder-satellite/build_sat_capsules_pre.sh
-COPY build_sat_capsules.sh /rhis/rhis-builder-satellite/build_sat_capsules.sh
+COPY build_sat_1_capsules_satellite_pre.sh /rhis/rhis-builder-satellite/build_sat_1_capsules_satellite_pre.sh
+COPY build_sat_2_capsules.sh /rhis/rhis-builder-satellite/build_sat_2_capsules.sh
+COPY build_sat_3_capsules_satellite_post.sh /rhis/rhis-builder-satellite/build_sat_3_capsules_satellite_post.sh
+
 COPY build_idm_replicas.sh /rhis/rhis-builder-idm/build_idm_replicas.sh
 COPY build_aap24_controller.sh /rhis/rhis-builder-aap/build_aap24_controller.sh
 COPY build_aap24_hub.sh /rhis/rhis-builder-aap/build_aap24_hub.sh

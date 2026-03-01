@@ -12,7 +12,7 @@ ansible-playbook --inventory /rhis/vars/external_inventory/inventory \
                  --ask-vault-pass \
                  --extra-vars "vault_dir=/rhis/vars/vault" \
                  --limit=sat_primary \
-                 --extra-vars "role_name=capsule_satellite_pre" \
+                 --extra-vars "role_name=capsule_post" \
                  run_role.yml
 
 duration=$SECONDS

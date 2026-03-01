@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Beginning builds for quadlet hosts"
+echo ""Using Satellite to provision Quadlet hosts defined in list quadlet_hosts defined in group_vars/provisioner/quadlet_hosts.yml""
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color/Normal
 printf "${GREEN}Start Time: %(%T)T${NC}\n" -1

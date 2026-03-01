@@ -9,7 +9,7 @@ See the [README.md](../rhis-base-container/README.md) in the rhis-base-container
 
 If you have suggestions, requests or have found a bug, please open an issue against this project. This will allow us to centrally manage the issues for the underlying projects for visibility and allow us to involve the proper team for the underlying project. We will pull together an issue template soon to help with ensure we have the required debugging information. 
 
-Just like the original container build, we will have an ansible 2.4 and ansible 2.5 build of the rhis-provisioner-container due to collection requirement differences for AAP 2.4 and AAP 2.5.
+Just like the original container build, we will have an AAP 2.4 and an AAP 2.5+ build of the rhis-provisioner-container due to collection requirement differences for AAP 2.4 and AAP 2.5 and greater.
 
 As always, your contributions to the project are essential, PRs are welcome. 
 

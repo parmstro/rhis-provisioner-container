@@ -1,30 +1,5 @@
-# Run the container with the default example.ca vars files
-# This uses the inventory, group_vars, and host_vars included with the projects
-# Bind your vault dir to the rhis vault directory
-
-# >>>>  assuming that you are running this as a user named ansiblerunner
-# you can use the following commands to launch the container
-
-# to simply use your own secrets directory (e.g. ~/.ansible/vault), run a command similar to the following the first path with your vault directory.
-# e.g. your vault directory /home/ansiblerunner/.ansible/vault
-# is expected to be mapped inside the container to /rhis/vault
-# this is a rootless container and expects the :Z attribute at the end of the volume mapping
-
-podman run -it -v /home/ansiblerunner/.ansible/vault:/rhis/vault:Z localhost/rhis-provisioner-9:latest
-
-# Once you are familiar with the containers operation, you can restart the container and bind your inventory, group_vars and host_vars
-# There is a separate volume bound for each element of your configuration:
-# - a vault directory
-# - a group_vars directory
-# - a host_vars directory
-# - an inventory directory containing your inventory file(s)
-
-podman run -it -v /home/parmstro/.ansible/vault:/rhis/vault:Z \
-               -v /home/parmstro/Projects/ansible/rhis-builder-satellite-inventory/group_vars:/rhis/vars/group_vars:Z \
-               -v /home/parmstro/Projects/ansible/rhis-builder-satellite-inventory/host_vars:/rhis/vars/host_vars:Z \
-               -v /home/parmstro/Projects/ansible/rhis-builder-satellite-inventory/inventory:/rhis/vars/external_inventory:Z \
-               localhost/rhis-provisioner-9:latest
-
-# Once the container is running you can run any of the ansible commands at the command prompt necessary to build the RHIS. 
-# See the rhis-builder_sample_commands.txt file for some examples.
-# We can eventually use this container as an Ansible Automation Platform execution environment.
+# Please see our sample deploy and build scripts.
+# These encapsulate a lot of the typical commands you would run to build an RHIS deployment.
+# You can execute individual tasks, roles and tasks embedded in roles using these methods.
+# For those that require more control, we have implemented tagging within the projects.
+# We will eventually publish the tagging model ...

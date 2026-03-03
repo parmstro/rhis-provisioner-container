@@ -73,4 +73,10 @@
            - Added fixes for trusted_hosts
            - build 9-2.4 1.0.97
            - build 9-2.5 1.0.59
+2026-03-03 - updated all helper scripts to all --sshuser your_username
+           - sshuser defaults to ansiblerunner, so backwards compatible
+           - satellite capsule installation now supports non idm certs - see updates in inventory
+           - fixed other artifacts
+           - build 9-2.4 1.0.108
+           - build 9-2.5 1.0.69
 END

@@ -6,11 +6,27 @@ NC='\033[0m' # No Color/Normal
 printf "${GREEN}Start Time: %(%T)T${NC}\n" -1
 SECONDS=0
 
-ansible-playbook -i /rhis/vars/external_inventory/inventory \
-                 -e "vault_dir=/rhis/vars/vault" \
-                 -u ansiblerunner \
+sshuser="ansiblerunner"
+
+while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+        -u|--sshuser)
+            sshuser="$2"
+            shift # Shift past the value
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+    shift # Shift past the option
+done
+
+ansible-playbook --inventory /rhis/vars/external_inventory/inventory \
+                 --user $sshuser \
                  --ask-pass \
                  --ask-vault-pass \
+                 --extra-vars "vault_dir=/rhis/vars/vault" \
                  --limit=idm_primary \
                  main.yml
 

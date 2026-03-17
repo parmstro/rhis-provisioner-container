@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Using Satellite to build Host Group test hosts defined in list hostgroup_test_hosts_rhel8 defined in group_vars/provisioner/ directory"
+echo "Using Satellite to build Host Group test hosts defined in list hostgroup_test_hosts_rhel10 defined in group_vars/provisioner/ directory"
 echo "WARNING: This creates a large number of VMs in the default configuration"
 echo "CTRL+C to exit"
 GREEN='\033[0;32m'

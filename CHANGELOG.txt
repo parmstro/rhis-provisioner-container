@@ -79,4 +79,8 @@
            - fixed other artifacts
            - build 9-2.4 1.0.108
            - build 9-2.5 1.0.69
+2026-03-17 - updated typos in helper scripts
+           - added deploy_kvm_hypervisors helper script
+           - build 9-2.4 1.0.109
+           - build 9-2.5 1.0.70
 END

@@ -9,13 +9,15 @@ LABEL summary="Provides the latest rhis-builder dependencies."
 ENV ANSIBLE_VERSION=${ANSIBLE_VER}
 ENV OS_VERSION=${OS_VER}
 ENV RHIS_VERSION=${RHIS_VER}
-
+    # RH automation hub
+        
 # Copy the requirements file into the container
 COPY dnf_requirements.txt /tmp/dnf_requirements.txt
 
 # Install packages efficiently in a single RUN command
 # This reads the file into an array and passes them to yum install
 RUN mapfile -t rpmArray < /tmp/dnf_requirements.txt && \
+    dnf update -y && \
     dnf install -y "${rpmArray[@]}" && \
     dnf clean all && \
     rm -rf /var/cache/yum /tmp/dnf_requirements.txt

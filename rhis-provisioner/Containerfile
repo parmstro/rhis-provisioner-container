@@ -68,6 +68,9 @@ COPY build_aap24_controller.sh /rhis/rhis-builder-aap/build_aap24_controller.sh
 COPY build_aap24_hub.sh /rhis/rhis-builder-aap/build_aap24_hub.sh
 COPY build_aap25_controller.sh /rhis/rhis-builder-aap/build_aap25_controller.sh
 COPY build_aap25_hub.sh /rhis/rhis-builder-aap/build_aap25_hub.sh
+
+COPY configure_aap_controller.sh /rhis/rhis-builder-aap/configure_aap_controller.sh
+
 COPY deploy_rhel8_test_hosts.sh /rhis/rhis-builder-pipelines/deploy_rhel8_test_hosts.sh
 COPY deploy_rhel9_test_hosts.sh /rhis/rhis-builder-pipelines/deploy_rhel9_test_hosts.sh
 COPY deploy_rhel10_test_hosts.sh /rhis/rhis-builder-pipelines/deploy_rhel10_test_hosts.sh
@@ -76,6 +79,8 @@ COPY deploy_sat_capsule_hosts.sh /rhis/rhis-builder-pipelines/deploy_sat_capsule
 COPY deploy_idm_replica_hosts.sh /rhis/rhis-builder-pipelines/deploy_idm_replica_hosts.sh
 COPY deploy_aap24_hosts.sh /rhis/rhis-builder-pipelines/deploy_aap24_hosts.sh
 COPY deploy_aap25_hosts.sh /rhis/rhis-builder-pipelines/deploy_aap25_hosts.sh
+COPY deploy_kvm_hypervisors.sh /rhis/rhis-builder-pipelines/deploy_kvm_hypervisors.sh
+
 COPY destroy_test_hosts.sh /rhis/rhis-builder-pipelines/destroy_test_hosts.sh
 
 # COPY *.sh /rhis/

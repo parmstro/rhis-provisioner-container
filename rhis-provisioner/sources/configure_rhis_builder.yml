@@ -47,6 +47,9 @@
       - name: "rhis-builder-quadlet-deploy"
         repo: "https://github.com/parmstro/rhis-builder-quadlet-deploy.git"
         purge: true
+      - name: "rhis-builder-kvm"
+        repo: "https://github.com/parmstro/rhis-builder-kvm.git"
+        purge: true
 
   tasks:
 

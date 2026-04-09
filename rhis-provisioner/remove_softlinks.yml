@@ -19,6 +19,7 @@
       - name: "rhis-builder-imagebuilder"
       - name: "rhis-builder-yubi"
       - name: "rhis-builder-convert2rhel"
+      - name: "rhis-builder-kvm"
 
   tasks:
 

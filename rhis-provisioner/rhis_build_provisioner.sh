@@ -23,6 +23,33 @@ push_registry_repo="parmstro"
 push_registry_login=""
 push_registry_token=""
 
+usage() {
+            echo "Usage: rhis_build_provisioner.sh [options]"
+            echo "Options:"
+            echo "    --no-cache - rebuild container from scatch"
+            echo "    --ansible-ver - specify the AAP API version - one of '2.4' (default) or '2.5'"
+            echo "    --ansible-config path_spec - provide the path specification to the ansible.cfg file (default: /etc/ansible/ansible.cfg)"
+            echo ""
+            echo "    --pull-registry - the name of the remote registry to pull the base image from (default: quay.io)"
+            echo "    --pull-registry-repo - the name of the repo in the remote pull registry (default: parmstro)"
+            echo "    --pull-registry-login - the login for the pull registry (e.g. mybot)"
+            echo "    --pull-registry-token - the authentication token for the pull registry"
+            echo ""
+            echo "    --push-registry - the name of the remote registry to push the final image to (default: quay.io)"
+            echo "    --push-registry-repo - the name of the repo in the remote registry (default: parmstro)"
+            echo "    --push-registry-login - the login for the push registry (e.g. mybot)"
+            echo "    --push-registry-token - the authentication token for the push registry"
+            echo ""
+            echo "    --version-mode - increment major, minor, or revision version of the build"
+            echo "Specifying 'localhost' for either the pull or push registry will ignore the corresponding repo option."
+            exit 1
+}
+
+# Check for no arguments, -h, or invalid options
+# if [[ $# -eq 0 ]] || [[ "$1" == "-h" ]]; then
+#     usage
+# fi
+
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
         -a|--ansible-ver)
@@ -73,28 +100,11 @@ while [[ "$#" -gt 0 ]]; do
             version_mode="$2"
             shift
             ;; 
+        -h|--help)
+            echo "Unknown option: $1" >&2; usage ;;
+
         *)
-            echo "Unknown option: $1"
-            echo "Usage: rhis_build_provisioner.sh [options]"
-            echo "Options:"
-            echo "    --no-cache - rebuild container from scatch"
-            echo "    --ansible-ver - specify the AAP API version - one of '2.4' (default) or '2.5'"
-            echo "    --ansible-config path_spec - provide the path specification to the ansible.cfg file (default: /etc/ansible/ansible.cfg)"
-            echo ""
-            echo "    --pull-registry - the name of the remote registry to pull the base image from (default: quay.io)"
-            echo "    --pull-registry-repo - the name of the repo in the remote pull registry (default: parmstro)"
-            echo "    --pull-registry-login - the login for the pull registry (e.g. mybot)"
-            echo "    --pull-registry-token - the authentication token for the pull registry"
-            echo ""
-            echo "    --push-registry - the name of the remote registry to push the final image to (default: quay.io)"
-            echo "    --push-registry-repo - the name of the repo in the remote registry (default: parmstro)"
-            echo "    --push-registry-login - the login for the push registry (e.g. mybot)"
-            echo "    --push-registry-token - the authentication token for the push registry"
-            echo ""
-            echo "    --version-mode - increment major, minor, or revision version of the build"
-            echo "Specifying 'localhost' for either the pull or push registry will ignore the corresponding repo option."
-            exit 1
-            ;;
+            echo "Unknown option: $1" >&2; usage ;;
     esac
     shift # Shift past the option
 done
@@ -127,16 +137,48 @@ build_container() {
 
   schema_version=$(cat $rhis_schema_version_file)
 
+  echo "Clean sources directory"
+  rm -f sources/*
+
   echo "Configure sources"
+  cp add_softlinks.yml sources/add_softlinks.yml
   cp $ansiblecfg sources/ansible.cfg
   cp ansible.cfg.clean sources/ansible.cfg.clean
+  cp build_idm_primary.sh sources/build_idm_primary.sh
+  cp build_idm_replicas.sh sources/build_idm_replicas.sh
+  cp build_sat_1_capsules_satellite_pre.sh sources/build_sat_1_capsules_satellite_pre.sh
+  cp build_sat_2_capsules.sh sources/build_sat_2_capsules.sh
+  cp build_sat_3_capsules_satellite_post.sh sources/build_sat_3_capsules_satellite_post.sh
+  cp build_sat_primary_connected.sh sources/build_sat_primary_connected.sh
+  
+  cp configure_aap_controller.sh sources/configure_aap_controller.sh
+  
+  cp deploy_idm_replica_hosts.sh sources/deploy_idm_replica_hosts.sh
+  cp deploy_kvm_hypervisors.sh sources/deploy_kvm_hypervisors.sh
+  cp deploy_quadlet_hosts.sh sources/deploy_quadlet_hosts.sh
+  cp deploy_rhel8_test_hosts.sh sources/deploy_rhel8_test_hosts.sh
+  cp deploy_rhel9_test_hosts.sh sources/deploy_rhel9_test_hosts.sh
+  cp deploy_rhel10_test_hosts.sh sources/deploy_rhel10_test_hosts.sh
+  cp deploy_sat_capsule_hosts.sh sources/deploy_sat_capsule_hosts.sh
+
+  cp run_satellite_role.sh sources/run_satellite_role.sh
+  cp run_idm_role.sh sources/run_idm_role.sh
+  cp run_aap_role.sh sources/run_aap_role.sh
+
   cp configure_rhis_builder.yml sources/configure_rhis_builder.yml
-  cp rhis-builder_sample_commands.txt sources/rhis-builder_sample_commands.txt 
-  cp *.sh sources/
   cp README.md sources/README.md
-
   cp ipareplica_test_patch.py sources/ipareplica_test_patch.py
-
+  
+  if [[ $ansiblever == "2.5" ]]; then
+    cp deploy_aap_hosts.sh sources/deploy_aap_hosts.sh
+    cp build_aap_controller.sh sources/build_aap_controller.sh
+    cp build_aap_standalone_hub.sh sources/build_aap_standalone_hub.sh
+  else
+    cp deploy_aap24_hosts.sh sources/deploy_aap_hosts.sh
+    cp build_aap24_controller.sh sources/build_aap_controller.sh
+    cp build_aap24_hub.sh sources/build_aap_standalone_hub.sh
+  fi
+  
   echo
   echo "Running 'podman build' with the following parameters:"
   echo
@@ -167,6 +209,9 @@ build_container() {
     podman push $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:$version
     podman push $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:latest
   fi
+
+  echo "Clean sources directory"
+  rm -f sources/*
 }
 
 get_base_version() {

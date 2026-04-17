@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Using rhis-builder-aap to build AAP 2.4 controller from inventory"
+echo "Using Satellite to build AAP hosts defined in configuration variable aap_hosts (type: list)"
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color/Normal
 printf "${GREEN}Start Time: %(%T)T${NC}\n" -1
@@ -10,10 +10,8 @@ sshuser="ansiblerunner"
 inventory="/rhis/vars/external_inventory/inventory"
 
 usage() {
-            echo "Usage: build_aap24_controller.sh [options]"
-            echo "NOTE: use this for AAP version 2.4 or earlier deployments ONLY"
-            echo "This helper script launches the play to install the AAP 2.4 or earlier controllers"
-            echo "Run configure_aap_controllers.sh after this script succeeds to configure the system"
+            echo "Usage: deploy_aap_hosts.sh [options]"
+            echo "This helper script launches the play to have Satellite deploy the AAP host instances"
             echo "Options:"
             echo "    -u | --sshuser <user> - specify the local or IdM realm user to execute the play"
             echo "    -i | --inventory <fq_inventory_path> - an alternate inventory to use for the play"
@@ -46,12 +44,12 @@ done
 ansible-playbook --inventory $inventory \
                  --user $sshuser \
                  --ask-pass \
-                 --ask-vault-pass \
+                 --ask-vault-password \
                  --extra-vars "vault_dir=/rhis/vars/vault" \
-                 --limit=platform_installer \
-                 main.yml
+                 --extra-vars "platform_hosts={{ aap_hosts }}" \
+                 --limit=provisioner \
+                 rhis_build_from_provisioner.yml
 
 duration=$SECONDS
 printf "\n${GREEN}End Time: %(%T)T${NC}\n" -1
 TZ=UTC0 printf "${GREEN}Elapsed Time: %(%T)T${NC}\n" $duration
-

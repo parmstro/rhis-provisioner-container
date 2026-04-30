@@ -13,9 +13,12 @@
 [defaults]
 remote_tmp: /var/tmp
 timeout: 300
+deprecation_warnings = False
+force_color = True
+callbacks_enabled = ansible.posix.profile_tasks, community.general.timestamp
 
 [ssh_connection]
-ssh_args = -o StrictHostKeyChecking=accept-new
+ssh_args = -o StrictHostKeyChecking=accept-new -o ControlMaster=auto -o ControlPersist=60s -o StrictHostKeyChecking=no
 
 [galaxy]
 server_list = galaxy_root

@@ -138,6 +138,7 @@ build_container() {
   schema_version=$(cat $rhis_schema_version_file)
 
   echo "Clean sources directory"
+  mkdir -p sources
   rm -f sources/*
 
   echo "Configure sources"
@@ -149,7 +150,7 @@ build_container() {
   cp build_sat_1_capsules_satellite_pre.sh sources/build_sat_1_capsules_satellite_pre.sh
   cp build_sat_2_capsules.sh sources/build_sat_2_capsules.sh
   cp build_sat_3_capsules_satellite_post.sh sources/build_sat_3_capsules_satellite_post.sh
-  cp build_sat_primary_connected.sh sources/build_sat_primary_connected.sh
+  cp build_sat_primary.sh sources/build_sat_primary.sh
   
   cp configure_aap_controller.sh sources/configure_aap_controller.sh
   

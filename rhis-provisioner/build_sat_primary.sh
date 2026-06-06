@@ -10,15 +10,15 @@ sshuser="ansiblerunner"
 inventory="/rhis/vars/external_inventory/inventory"
 
 usage() {
-            echo "Usage: build_sat_primary_connected.sh [options]"
-            echo "This helper script launches the play to install and configure the connected Satellite Primary"
+            echo "Usage: build_sat_primary.sh [options]"
+            echo "This helper script launches the play to install and configure the Satellite Primary"
             echo "Options:"
             echo "    -u | --sshuser <user> - specify the local or IdM realm user to execute the play"
             echo "    -i | --inventory <fq_inventory_path> - an alternate inventory to use for the play"
             echo "    -h | --help - prints this message"
             echo "The default user is 'ansiblerunner' if not specified."
             echo "The default inventory is '/rhis/vars/external_inventory/inventory' if not specified."
-            echo "NOTE: You must build a connected satellite before a disconnected satellite"
+            echo "NOTE: You must build a primary satellite before a disconnected satellite"
             echo "You will be prompted for the ssh and vault passwords."
             exit 1
 }

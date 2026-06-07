@@ -110,6 +110,23 @@ rsync -av --progress \
     exit 1
 }
 
+# ── Copy content_imports.yml from Pulp export area ─────────────────────────
+# The export playbook writes content_imports.yml to rhis_import_export_data/
+# on the satellite. Include the latest one in the bundle so the highside
+# operator has it available without needing to locate it separately.
+
+IMPORTS_DIR="$(dirname "$pulp_export_dir")/rhis_import_export_data"
+LATEST_IMPORTS=$(find "$IMPORTS_DIR" -name "*content_imports.yml" 2>/dev/null | sort | tail -1)
+if [[ -n "$LATEST_IMPORTS" ]]; then
+    echo ""
+    echo "Copying content_imports.yml..."
+    sudo cp "$LATEST_IMPORTS" "${DEST}/content_imports.yml" || {
+        echo -e "${YELLOW}WARNING: Could not copy content_imports.yml${NC}" >&2
+    }
+else
+    echo -e "${YELLOW}WARNING: content_imports.yml not found in ${IMPORTS_DIR}${NC}" >&2
+fi
+
 # ── Copy Pulp library export ────────────────────────────────────────────────
 
 echo ""

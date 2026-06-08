@@ -50,6 +50,30 @@
       - name: "rhis-builder-kvm"
         repo: "https://github.com/parmstro/rhis-builder-kvm.git"
         purge: true
+      - name: "rhis-builder-baremetal-init"
+        repo: "https://github.com/parmstro/rhis-builder-baremetal-init.git"
+        purge: true
+      - name: "rhis-builder-aws-lz"
+        repo: "https://github.com/parmstro/rhis-builder-aws-lz.git"
+        purge: true
+      - name: "rhis-builder-azure-lz"
+        repo: "https://github.com/parmstro/rhis-builder-azure-lz.git"
+        purge: true
+      - name: "rhis-builder-keycloak"
+        repo: "https://github.com/parmstro/rhis-builder-keycloak.git"
+        purge: true
+      - name: "rhis-builder-kvm-lz"
+        repo: "https://github.com/parmstro/rhis-builder-kvm-lz.git"
+        purge: true
+      - name: "rhis-builder-ocp-certs"
+        repo: "https://github.com/parmstro/rhis-builder-ocp-certs.git"
+        purge: true
+      - name: "rhis-builder-ocp-upi"
+        repo: "https://github.com/parmstro/rhis-builder-ocp-upi.git"
+        purge: true
+      - name: "rhis-builder-quay"
+        repo: "https://github.com/parmstro/rhis-builder-quay.git"
+        purge: true
 
   tasks:
 
@@ -213,7 +237,7 @@
       loop_control:
         loop_var: project
 
-    - name: "Link the inventory directory to the bind mount directory"
+    - name: "Link the vault directory to the bind mount directory"
       when: project.purge
       ansible.builtin.file:
         src: "{{ default_vault_link }}"
@@ -229,7 +253,7 @@
         path: "{{ rhis_root_dir }}/rhis-builder-inventory/vault"
         state: absent
 
-    - name: "Delete any vault files for rhis-builder-inventory"
+    - name: "Delete any vault files for rhis-builder-pipelines"
       ansible.builtin.file:
         path: "{{ rhis_root_dir }}/rhis-builder-pipelines/vmware/vars/vault.yml"
         state: absent

@@ -50,8 +50,8 @@
       - name: "rhis-builder-kvm"
         repo: "https://github.com/parmstro/rhis-builder-kvm.git"
         purge: true
-      - name: "rhis-builder-baremetal-init"
-        repo: "https://github.com/parmstro/rhis-builder-baremetal-init.git"
+      - name: "rhis-builder-bootstrap-init"
+        repo: "https://github.com/parmstro/rhis-builder-bootstrap-init.git"
         purge: true
       - name: "rhis-builder-aws-lz"
         repo: "https://github.com/parmstro/rhis-builder-aws-lz.git"

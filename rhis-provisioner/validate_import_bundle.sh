@@ -62,11 +62,11 @@ fi
 
 # Auto-discover the bundle directory (copy_rhis_to_transfer_media.sh creates rhis_transfer_* directories)
 if [[ -z "$BUNDLE_ROOT" ]]; then
-    BUNDLE_ROOT=$(find "$DRIVE_MOUNT" -maxdepth 1 -type d -name "rhis_transfer_*" 2>/dev/null | sort | tail -1)
+    BUNDLE_ROOT=$(sudo find "$DRIVE_MOUNT" -maxdepth 1 -type d -name "rhis_transfer_*" 2>/dev/null | sort | tail -1)
     if [[ -n "$BUNDLE_ROOT" ]]; then
         echo "Auto-discovered bundle: $(basename "$BUNDLE_ROOT")"
     else
-        echo "ERROR: No rhis_transfer_* directory found on drive. Has copy_rhis_to_transfer_media.sh been run?"
+        echo "ERROR: No rhis_transfer_* directory found on drive. Has copy_to_transfer_media.yml been run?"
         exit 1
     fi
 else
@@ -124,23 +124,29 @@ fi
 echo
 echo "── Content Export ────────────────────────────────────────"
 
+# Check library_export/ first (old pattern), then drive root Default_Organization/ (new pattern)
+CHUNK_COUNT=0
+METADATA_FILE=""
 if [[ -d "$LIBRARY_EXPORT_DIR" ]]; then
     CHUNK_COUNT=$(find "$LIBRARY_EXPORT_DIR" -name "*.tar.*" -type f 2>/dev/null | wc -l)
     METADATA_FILE=$(find "$LIBRARY_EXPORT_DIR" -name "metadata.json" 2>/dev/null | head -1)
+    check INFO "Export content found in library_export/ subdirectory"
+elif [[ -d "$DRIVE_MOUNT/Default_Organization" ]]; then
+    CHUNK_COUNT=$(find "$DRIVE_MOUNT/Default_Organization" -name "*.tar.*" -type f 2>/dev/null | wc -l)
+    METADATA_FILE=$(find "$DRIVE_MOUNT/Default_Organization" -name "metadata.json" 2>/dev/null | head -1)
+    check INFO "Export content found at drive root (Default_Organization/)"
+fi
 
-    if [[ "$CHUNK_COUNT" -gt 0 ]]; then
-        check PASS "$CHUNK_COUNT export chunk(s) found in library_export/"
-    else
-        check FAIL "No export chunks found in library_export/ — copy_rhis_to_transfer_media.sh may not have run"
-    fi
-
-    if [[ -n "$METADATA_FILE" && -f "$METADATA_FILE" ]]; then
-        check PASS "metadata.json present"
-    else
-        check FAIL "metadata.json missing — import will fail without it"
-    fi
+if [[ "$CHUNK_COUNT" -gt 0 ]]; then
+    check PASS "$CHUNK_COUNT export chunk(s) found"
 else
-    check FAIL "library_export/ directory not found — copy_rhis_to_transfer_media.sh may not have run"
+    check FAIL "No export chunks found — has the export run successfully?"
+fi
+
+if [[ -n "$METADATA_FILE" && -f "$METADATA_FILE" ]]; then
+    check PASS "metadata.json present"
+else
+    check FAIL "metadata.json missing — import will fail without it"
 fi
 
 # ── content_imports.yml ────────────────────────────────────────────────────────
@@ -169,10 +175,10 @@ else
     check WARN "ansible_roles/ is empty or missing — compliance roles will not be available"
 fi
 
-if [[ -d "$BUNDLE_ROOT/baremetal_init" && "$(ls -A "$BUNDLE_ROOT/baremetal_init" 2>/dev/null)" ]]; then
-    check PASS "baremetal_init/ present — kickstart ISO tooling available"
+if [[ -d "$BUNDLE_ROOT/bootstrap_init" && "$(ls -A "$BUNDLE_ROOT/bootstrap_init" 2>/dev/null)" ]]; then
+    check PASS "bootstrap_init/ present — kickstart ISO tooling available"
 else
-    check WARN "baremetal_init/ is empty or missing — no kickstart ISO tooling in bundle"
+    check WARN "bootstrap_init/ is empty or missing — no kickstart ISO tooling in bundle"
 fi
 
 MANIFEST_COUNT=$(find "$BUNDLE_ROOT/manifests" -name "*.zip" 2>/dev/null | wc -l)

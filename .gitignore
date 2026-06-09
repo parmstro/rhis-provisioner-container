@@ -1,3 +1,5 @@
 .vscode
 internal*
 ansible.cfg
+.vscode/
+.claude/

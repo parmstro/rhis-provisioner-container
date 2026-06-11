@@ -59,7 +59,7 @@ if [[ ! -d "$bundle_dir" ]]; then
     exit 1
 fi
 
-if [[ ! -d "$pulp_export_dir" ]]; then
+if ! sudo test -d "$pulp_export_dir" 2>/dev/null; then
     echo -e "${RED}ERROR: Pulp export directory not found: ${pulp_export_dir}${NC}" >&2
     exit 1
 fi
@@ -90,7 +90,7 @@ fi
 
 TRANSFER_NAME="rhis_transfer_$(basename "$bundle_dir")"
 DEST="${media_path}/${TRANSFER_NAME}"
-mkdir -p "${DEST}/library_export" || {
+sudo mkdir -p "${DEST}/library_export" && sudo chown -R ansiblerunner:ansiblerunner "${DEST}" || {
     echo -e "${RED}ERROR: Cannot create destination directory on transfer media.${NC}" >&2
     exit 1
 }

@@ -36,7 +36,7 @@ usage() {
     echo ""
     echo "Examples:"
     echo "    validate_import_bundle.sh -d /mnt/transfer"
-    echo "    validate_import_bundle.sh -d /mnt/transfer -b discosatellite1.example.ca_2026-06-07_0338"
+    echo "    validate_import_bundle.sh -d /mnt/transfer -b rhis_transfer_20260607_0338"
     exit 1
 }
 

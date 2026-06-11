@@ -211,6 +211,41 @@ else
     check WARN "inventory/ is empty or missing"
 fi
 
+# ── Security — no vault material on drive ─────────────────────────────────────
+echo
+echo "── Security ──────────────────────────────────────────────"
+
+VAULT_HITS=()
+
+# Vault password files
+while IFS= read -r f; do
+    VAULT_HITS+=("$f")
+done < <(find "$DRIVE_MOUNT" -type f \( -name "vault.txt" -o -name ".vault_pass" -o -name "vault_pass.txt" \) 2>/dev/null)
+
+# Files inside directories named vault/
+while IFS= read -r f; do
+    VAULT_HITS+=("$f")
+done < <(find "$DRIVE_MOUNT" -path "*/vault/*" -type f 2>/dev/null)
+
+# Ansible vault-encrypted files (look for $ANSIBLE_VAULT header)
+while IFS= read -r f; do
+    if head -1 "$f" 2>/dev/null | grep -q '^\$ANSIBLE_VAULT'; then
+        VAULT_HITS+=("$f")
+    fi
+done < <(find "$DRIVE_MOUNT" -type f -name "*.yml" -o -type f -name "*.yaml" 2>/dev/null)
+
+# Deduplicate
+mapfile -t VAULT_HITS < <(printf '%s\n' "${VAULT_HITS[@]}" | sort -u)
+
+if [[ "${#VAULT_HITS[@]}" -eq 0 ]]; then
+    check PASS "No vault files detected on drive"
+else
+    for f in "${VAULT_HITS[@]}"; do
+        check FAIL "Vault material found on drive: ${f#"$DRIVE_MOUNT/"}"
+    done
+    check FAIL "Remove vault files before transporting this drive"
+fi
+
 # ── Checksum verification ─────────────────────────────────────────────────────
 echo
 echo "── Checksum Verification ─────────────────────────────────"
@@ -262,15 +297,15 @@ fi
 echo
 echo "============================================================"
 if [[ "$CHECKS_FAILED" -gt 0 ]]; then
-    printf " ${RED}NOT READY FOR IMPORT${NC} — %d failure(s), %d warning(s)\n" "$CHECKS_FAILED" "$CHECKS_WARNED"
-    echo " Resolve the failures above before running the import."
+    printf " ${RED}DRIVE INVALID${NC} — %d failure(s), %d warning(s)\n" "$CHECKS_FAILED" "$CHECKS_WARNED"
+    echo " Resolve the failures above before transporting or importing this drive."
     exit 1
 elif [[ "$CHECKS_WARNED" -gt 0 ]]; then
-    printf " ${YELLOW}READY WITH WARNINGS${NC} — %d warning(s)\n" "$CHECKS_WARNED"
-    echo " Review warnings. Import can proceed."
+    printf " ${YELLOW}DRIVE VALID WITH WARNINGS${NC} — %d warning(s)\n" "$CHECKS_WARNED"
+    echo " Review warnings above. Drive is safe to transport and import can proceed."
     exit 0
 else
-    printf " ${GREEN}READY FOR IMPORT${NC}\n"
-    echo " Run the import playbook when ready."
+    printf " ${GREEN}DRIVE VALID${NC} — bundle is complete and contains no vault material\n"
+    echo " Safe to transport. Run ./import_bundle.sh on the highside when ready."
     exit 0
 fi

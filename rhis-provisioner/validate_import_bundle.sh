@@ -217,22 +217,22 @@ echo "── Security ───────────────────�
 
 VAULT_HITS=()
 
-# Vault password files
+# Any file with "vault" anywhere in the filename (case-insensitive)
 while IFS= read -r f; do
     VAULT_HITS+=("$f")
-done < <(find "$DRIVE_MOUNT" -type f \( -name "vault.txt" -o -name ".vault_pass" -o -name "vault_pass.txt" \) 2>/dev/null)
+done < <(find "$DRIVE_MOUNT" -type f -iname "*vault*" 2>/dev/null)
 
-# Files inside directories named vault/
+# Files inside directories named vault/ (catches vault dirs without vault in filename)
 while IFS= read -r f; do
     VAULT_HITS+=("$f")
 done < <(find "$DRIVE_MOUNT" -path "*/vault/*" -type f 2>/dev/null)
 
-# Ansible vault-encrypted files (look for $ANSIBLE_VAULT header)
+# Ansible vault-encrypted files (look for $ANSIBLE_VAULT header in any text file)
 while IFS= read -r f; do
     if head -1 "$f" 2>/dev/null | grep -q '^\$ANSIBLE_VAULT'; then
         VAULT_HITS+=("$f")
     fi
-done < <(find "$DRIVE_MOUNT" -type f -name "*.yml" -o -type f -name "*.yaml" 2>/dev/null)
+done < <(find "$DRIVE_MOUNT" -type f \( -name "*.yml" -o -name "*.yaml" -o -name "*.txt" \) 2>/dev/null)
 
 # Deduplicate
 mapfile -t VAULT_HITS < <(printf '%s\n' "${VAULT_HITS[@]}" | sort -u)

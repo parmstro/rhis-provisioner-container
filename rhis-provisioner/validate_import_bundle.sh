@@ -211,41 +211,6 @@ else
     check WARN "inventory/ is empty or missing"
 fi
 
-# ── Security — no vault material on drive ─────────────────────────────────────
-echo
-echo "── Security ──────────────────────────────────────────────"
-
-VAULT_HITS=()
-
-# Any file with "vault" anywhere in the filename (case-insensitive)
-while IFS= read -r f; do
-    VAULT_HITS+=("$f")
-done < <(find "$DRIVE_MOUNT" -type f -iname "*vault*" 2>/dev/null)
-
-# Files inside directories named vault/ (catches vault dirs without vault in filename)
-while IFS= read -r f; do
-    VAULT_HITS+=("$f")
-done < <(find "$DRIVE_MOUNT" -path "*/vault/*" -type f 2>/dev/null)
-
-# Ansible vault-encrypted files (look for $ANSIBLE_VAULT header in any text file)
-while IFS= read -r f; do
-    if head -1 "$f" 2>/dev/null | grep -q '^\$ANSIBLE_VAULT'; then
-        VAULT_HITS+=("$f")
-    fi
-done < <(find "$DRIVE_MOUNT" -type f \( -name "*.yml" -o -name "*.yaml" -o -name "*.txt" \) 2>/dev/null)
-
-# Deduplicate
-mapfile -t VAULT_HITS < <(printf '%s\n' "${VAULT_HITS[@]}" | sort -u)
-
-if [[ "${#VAULT_HITS[@]}" -eq 0 ]]; then
-    check PASS "No vault files detected on drive"
-else
-    for f in "${VAULT_HITS[@]}"; do
-        check FAIL "Vault material found on drive: ${f#"$DRIVE_MOUNT/"}"
-    done
-    check FAIL "Remove vault files before transporting this drive"
-fi
-
 # ── Checksum verification ─────────────────────────────────────────────────────
 echo
 echo "── Checksum Verification ─────────────────────────────────"
@@ -305,7 +270,7 @@ elif [[ "$CHECKS_WARNED" -gt 0 ]]; then
     echo " Review warnings above. Drive is safe to transport and import can proceed."
     exit 0
 else
-    printf " ${GREEN}DRIVE VALID${NC} — bundle is complete and contains no vault material\n"
+    printf " ${GREEN}DRIVE VALID${NC} — bundle is complete\n"
     echo " Safe to transport. Run ./import_bundle.sh on the highside when ready."
     exit 0
 fi

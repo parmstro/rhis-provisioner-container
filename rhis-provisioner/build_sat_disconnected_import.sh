@@ -10,9 +10,6 @@
 # OPTIONS:
 #   -d | --deployment <name>        Deployment name (e.g. highside.example.ca) [required]
 #   -m | --delivery-method <method> Bundle delivery method: usb | virtual_disk | rsync [required]
-#   -b | --bundle-dir <name>        Bundle directory name (e.g. rhis_transfer_20260601_120000)
-#                                   Optional for virtual_disk/rsync (auto-discovered from source-path).
-#                                   Provided to bundle_delivery for explicit USB selection.
 #   -s | --source-path <path>       Source path on provisioner for virtual_disk/rsync
 #                                   (default: /mnt/rhis_transfer)
 #   -u | --sshuser <user>           SSH user for satellite connection (default: ansiblerunner)
@@ -26,8 +23,7 @@ NC='\033[0m'
 
 deployment=""
 delivery_method=""
-bundle_dir=""
-source_path="/mnt/rhis_transfer"
+source_path="/home/ansiblerunner/rhis_transfer"
 sshuser="ansiblerunner"
 inventory="/rhis/vars/external_inventory/inventory"
 
@@ -40,7 +36,6 @@ while [[ "$#" -gt 0 ]]; do
     case "$1" in
         -d|--deployment)        deployment="$2";        shift ;;
         -m|--delivery-method)   delivery_method="$2";   shift ;;
-        -b|--bundle-dir)        bundle_dir="$2";        shift ;;
         -s|--source-path)       source_path="$2";       shift ;;
         -u|--sshuser)           sshuser="$2";           shift ;;
         -i|--inventory)         inventory="$2";         shift ;;
@@ -96,26 +91,12 @@ echo -e "  Satellite:         ${YELLOW}${SAT_HOST}${NC}"
 echo -e "  Delivery method:   ${YELLOW}${delivery_method}${NC}"
 echo -e "  host_vars dir:     ${YELLOW}${HOST_VARS_DIR}${NC}"
 
-# ── For push methods: auto-discover bundle_dir from source_path ─────────────
-if [[ "$delivery_method" != "usb" && -z "$bundle_dir" ]]; then
-    bundle_dir=$(ls -td "${source_path}"/rhis_transfer_*/ 2>/dev/null | head -1 | xargs -r basename 2>/dev/null)
-    if [[ -z "$bundle_dir" ]]; then
-        echo -e "${RED}ERROR: No rhis_transfer_* directory found under ${source_path}${NC}" >&2
-        echo -e "${RED}       Provide --bundle-dir explicitly or check --source-path.${NC}" >&2
-        exit 1
-    fi
-    echo -e "  Bundle dir:        ${YELLOW}${bundle_dir}${NC} (auto-discovered)"
-elif [[ -n "$bundle_dir" ]]; then
-    echo -e "  Bundle dir:        ${YELLOW}${bundle_dir}${NC}"
-fi
-
 # ── Step 1: bundle_delivery.yml ──────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}── Step 1/3: Delivering bundle to satellite ────────────────────────────────${NC}"
 
 DELIVERY_EXTRA_VARS="bundle_delivery_method=${delivery_method}"
-[[ -n "$bundle_dir" ]]                  && DELIVERY_EXTRA_VARS+=" bundle_delivery_bundle_dir=${bundle_dir}"
-[[ "$delivery_method" != "usb" ]]       && DELIVERY_EXTRA_VARS+=" bundle_delivery_source_path=${source_path}"
+[[ "$delivery_method" != "usb" ]] && DELIVERY_EXTRA_VARS+=" bundle_delivery_source_path=${source_path}"
 
 ansible-playbook \
     --inventory "$inventory" \
@@ -133,41 +114,45 @@ if [[ $EXIT_CODE -ne 0 ]]; then
     exit $EXIT_CODE
 fi
 
-# ── Step 2: Remap content_imports.yml and write disconnected vars ────────────
+# ── Step 2: Write disconnected extra-vars for main.yml ─────────────────────────
+# bundle_delivery_bundle_path (C3: <stage_path>/satellite or <usb_mount>/satellite)
+# is written by bundle_delivery validate.yml to /tmp/rhis_bundle_path.txt.
+# content_imports.yml is already present in the inventory archive (C6 — remapped
+# at export time, no sed remap needed here).
+
 echo ""
-echo -e "${GREEN}── Step 2/3: Preparing host_vars for disconnected build ─────────────────────${NC}"
+echo -e "${GREEN}── Step 2/3: Preparing disconnected build extra-vars ─────────────────────────${NC}"
 
-FETCHED_IMPORTS="/tmp/rhis_content_imports_fetch.yml"
-if [[ ! -f "$FETCHED_IMPORTS" ]]; then
-    echo -e "${RED}ERROR: bundle_delivery.yml did not produce ${FETCHED_IMPORTS}${NC}" >&2
-    echo -e "${RED}       Check that _content_imports.yml exists in the transfer bundle.${NC}" >&2
-    exit 1
-fi
-
-# Remap lowside export prefix to highside import prefix
-sed 's|/var/lib/pulp/exports/|/var/lib/pulp/imports/|g' \
-    "$FETCHED_IMPORTS" \
-    > "${HOST_VARS_DIR}/content_imports.yml"
-echo -e "  content_imports.yml written to: ${YELLOW}${HOST_VARS_DIR}/content_imports.yml${NC}"
-
-# Read bundle path written by bundle_delivery validate tasks
 BUNDLE_PATH=$(cat /tmp/rhis_bundle_path.txt 2>/dev/null)
 if [[ -z "$BUNDLE_PATH" ]]; then
     echo -e "${RED}ERROR: Could not read bundle path from /tmp/rhis_bundle_path.txt${NC}" >&2
+    echo -e "${RED}       Check bundle_delivery.yml output — validate.yml writes this file.${NC}" >&2
     exit 1
 fi
 echo -e "  Bundle path on satellite:       ${YELLOW}${BUNDLE_PATH}${NC}"
 
-# Write disconnected extra-vars — passed to main.yml to set all disconnected code paths
 EXTRA_VARS_FILE="/tmp/rhis_disconnected_extra_vars.yml"
+
+# Read the FDI discovery URL from the inventory satellite_pre.yml rather than
+# detecting the provisioner IP at runtime (hostname is not available in the container).
+_fdi_source_url=$(grep 'satellite_disconnected_discovery_source_url:' \
+    "${HOST_VARS_DIR}/satellite_pre.yml" 2>/dev/null \
+    | awk '{print $2}' | tr -d '"')
+
+if [[ -z "${_fdi_source_url}" ]]; then
+    echo -e "${YELLOW}WARNING: satellite_disconnected_discovery_source_url not found in ${HOST_VARS_DIR}/satellite_pre.yml${NC}"
+    echo -e "${YELLOW}         Foreman Discovery image will not be configured by satellite-installer.${NC}"
+fi
+echo -e "  FDI source URL:    ${YELLOW}${_fdi_source_url:-<not set>}${NC}"
+
 cat > "$EXTRA_VARS_FILE" <<EOF
 satellite_disconnected: true
 satellite_disconnected_iso_prestaged: true
 satellite_disconnected_root: "${BUNDLE_PATH}"
 satellite_import_content: true
 satellite_roles_source_path: "${BUNDLE_PATH}/ansible_roles"
-satellite_disconnected_discovery_images_src: "${BUNDLE_PATH}/discovery_images"
 satellite_bundle_stage_path: "/var/satellite_stage/pulp_stage"
+satellite_disconnected_discovery_source_url: "${_fdi_source_url}"
 EOF
 echo -e "  Disconnected extra-vars written: ${YELLOW}${EXTRA_VARS_FILE}${NC}"
 

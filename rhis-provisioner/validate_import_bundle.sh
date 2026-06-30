@@ -6,9 +6,29 @@
 # committing to a multi-hour import run.
 # Physical security of the drive in transit is the customer's responsibility.
 #
-# Usage: validate_import_bundle.sh -d <bundle_root>
-#   bundle_root: root of the transfer drive (e.g. /mnt/transfer)
-#                or the specific bundle directory if multiple bundles exist
+# Drive layout (C3): workflow-stage directories at drive root.
+#   TRANSFER_DRV/
+#     rhis_export_manifest.yml
+#     README_FIRST.md
+#     import_bundle.sh
+#     <Pulp_org_dir>/              ← Pulp export chunks (org-named directory)
+#     bootstrap/
+#       rhis-builder-bootstrap-init/
+#       bootstrap_isos/
+#       infra_isos/
+#     provisioner/
+#       inventory/
+#         deployments/<highside>/
+#           host_vars/satellite1/
+#             content_imports.yml
+#           files/
+#             *.zip                ← subscription manifests
+#       containers/
+#     satellite/
+#       ansible_roles/
+#       discovery_images/
+#
+# Usage: validate_import_bundle.sh -d <drive_mount>
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -21,29 +41,24 @@ FAIL="${RED}[FAIL]${NC}"
 INFO="${GREEN}[INFO]${NC}"
 
 DRIVE_MOUNT=""
-BUNDLE_ROOT=""
 
 usage() {
     echo "Usage: validate_import_bundle.sh [options]"
     echo ""
     echo "Run on the highside after mounting the transfer drive."
-    echo "The drive contains both the Pulp export content and the bundle artifacts."
     echo ""
     echo "Options:"
     echo "    -d | --drive-mount <path>  Mount point of the transfer drive (e.g. /mnt/transfer)"
-    echo "    -b | --bundle-dir <path>   Specific bundle directory if multiple exist on the drive"
     echo "    -h | --help                Show this message"
     echo ""
     echo "Examples:"
     echo "    validate_import_bundle.sh -d /mnt/transfer"
-    echo "    validate_import_bundle.sh -d /mnt/transfer -b rhis_transfer_20260607_0338"
     exit 1
 }
 
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
         -d|--drive-mount) DRIVE_MOUNT="$2"; shift ;;
-        -b|--bundle-dir)  BUNDLE_ROOT="$2"; shift ;;
         -h|--help) usage ;;
         *) echo "Unknown option: $1"; usage ;;
     esac
@@ -59,27 +74,6 @@ if [[ ! -d "$DRIVE_MOUNT" ]]; then
     echo "ERROR: Drive mount point not found: $DRIVE_MOUNT"
     exit 1
 fi
-
-# Auto-discover the bundle directory (copy_rhis_to_transfer_media.sh creates rhis_transfer_* directories)
-if [[ -z "$BUNDLE_ROOT" ]]; then
-    BUNDLE_ROOT=$(sudo find "$DRIVE_MOUNT" -maxdepth 1 -type d -name "rhis_transfer_*" 2>/dev/null | sort | tail -1)
-    if [[ -n "$BUNDLE_ROOT" ]]; then
-        echo "Auto-discovered bundle: $(basename "$BUNDLE_ROOT")"
-    else
-        echo "ERROR: No rhis_transfer_* directory found on drive. Has copy_to_transfer_media.yml been run?"
-        exit 1
-    fi
-else
-    BUNDLE_ROOT="$DRIVE_MOUNT/$BUNDLE_ROOT"
-fi
-
-if [[ ! -d "$BUNDLE_ROOT" ]]; then
-    echo "ERROR: Bundle directory not found: $BUNDLE_ROOT"
-    exit 1
-fi
-
-# Pulp export content is in library_export/ subdirectory within the bundle
-LIBRARY_EXPORT_DIR="$BUNDLE_ROOT/library_export"
 
 CHECKS_FAILED=0
 CHECKS_WARNED=0
@@ -97,18 +91,16 @@ echo
 echo "============================================================"
 echo " RHIS Import Bundle Validation"
 echo " Drive:  $DRIVE_MOUNT"
-echo " Bundle: $(basename "$BUNDLE_ROOT")"
 echo "============================================================"
 
 # ── Manifest ──────────────────────────────────────────────────────────────────
 echo
 echo "── Manifest ──────────────────────────────────────────────"
 
-MANIFEST="$BUNDLE_ROOT/rhis_disconnected_manifest.yml"
+MANIFEST="$DRIVE_MOUNT/rhis_export_manifest.yml"
 if [[ -f "$MANIFEST" ]]; then
-    check PASS "Manifest found: rhis_disconnected_manifest.yml"
+    check PASS "Manifest found: rhis_export_manifest.yml"
 
-    # Parse key fields from manifest (simple grep, no YAML parser needed)
     SOURCE=$(grep "source_satellite:" "$MANIFEST" | awk '{print $2}')
     TIMESTAMP=$(grep "generated:" "$MANIFEST" | awk '{print $2}')
     PULP_PATH=$(grep "pulp_export_path:" "$MANIFEST" | awk '{print $2}')
@@ -120,21 +112,19 @@ else
     check FAIL "Manifest not found — bundle may be incomplete or corrupted"
 fi
 
-# ── Content export chunks ─────────────────────────────────────────────────────
+# ── Content export chunks (Pulp — org directory at drive root) ─────────────────
 echo
 echo "── Content Export ────────────────────────────────────────"
 
-# Check library_export/ first (old pattern), then drive root Default_Organization/ (new pattern)
 CHUNK_COUNT=0
 METADATA_FILE=""
-if [[ -d "$LIBRARY_EXPORT_DIR" ]]; then
-    CHUNK_COUNT=$(find "$LIBRARY_EXPORT_DIR" -name "*.tar.*" -type f 2>/dev/null | wc -l)
-    METADATA_FILE=$(find "$LIBRARY_EXPORT_DIR" -name "metadata.json" 2>/dev/null | head -1)
-    check INFO "Export content found in library_export/ subdirectory"
-elif [[ -d "$DRIVE_MOUNT/Default_Organization" ]]; then
-    CHUNK_COUNT=$(find "$DRIVE_MOUNT/Default_Organization" -name "*.tar.*" -type f 2>/dev/null | wc -l)
-    METADATA_FILE=$(find "$DRIVE_MOUNT/Default_Organization" -name "metadata.json" 2>/dev/null | head -1)
-    check INFO "Export content found at drive root (Default_Organization/)"
+PULP_DIR=$(find "$DRIVE_MOUNT" -maxdepth 1 -mindepth 1 -type d \
+    ! -name bootstrap ! -name provisioner ! -name satellite 2>/dev/null | head -1)
+
+if [[ -n "$PULP_DIR" ]]; then
+    CHUNK_COUNT=$(find "$PULP_DIR" -name "*.tar.*" -type f 2>/dev/null | wc -l)
+    METADATA_FILE=$(find "$PULP_DIR" -name "metadata.json" 2>/dev/null | head -1)
+    check INFO "Pulp export directory: $(basename "$PULP_DIR")"
 fi
 
 if [[ "$CHUNK_COUNT" -gt 0 ]]; then
@@ -149,66 +139,96 @@ else
     check FAIL "metadata.json missing — import will fail without it"
 fi
 
-# ── content_imports.yml ────────────────────────────────────────────────────────
+# ── Import configuration ───────────────────────────────────────────────────────
 echo
 echo "── Import Configuration ──────────────────────────────────"
 
-IMPORTS_FILE=$(find "$BUNDLE_ROOT" -name "*content_imports.yml" 2>/dev/null | head -1)
+IMPORTS_FILE=$(find "$DRIVE_MOUNT/provisioner/inventory" \
+    -path "*/host_vars/*/content_imports.yml" 2>/dev/null | head -1)
 if [[ -n "$IMPORTS_FILE" ]]; then
-    check PASS "content_imports.yml found: $(basename "$IMPORTS_FILE")"
+    check PASS "content_imports.yml found: ${IMPORTS_FILE#$DRIVE_MOUNT/}"
     IMPORT_TYPE=$(grep "type:" "$IMPORTS_FILE" | head -1 | awk '{print $2}' | tr -d '"')
     IMPORT_PATH=$(grep "import_path:" "$IMPORTS_FILE" | head -1 | awk '{print $2}' | tr -d '"')
     [[ -n "$IMPORT_TYPE" ]] && check INFO "Export type: $IMPORT_TYPE"
     [[ -n "$IMPORT_PATH" ]] && check INFO "Import path: $IMPORT_PATH"
 else
-    check FAIL "content_imports.yml not found — highside operator cannot configure the import"
+    check FAIL "content_imports.yml not found under provisioner/inventory/ — highside operator cannot configure the import"
+fi
+
+# ── Subscription manifests (inside provisioner inventory) ──────────────────────
+MANIFEST_COUNT=$(find "$DRIVE_MOUNT/provisioner/inventory" \
+    -path "*/files/*.zip" 2>/dev/null | wc -l)
+if [[ "$MANIFEST_COUNT" -gt 0 ]]; then
+    check PASS "Subscription manifest(s): $MANIFEST_COUNT zip file(s) found in provisioner/inventory/"
+    find "$DRIVE_MOUNT/provisioner/inventory" -path "*/files/*.zip" | while read -r f; do
+        check INFO "  $(basename "$f")"
+    done
+else
+    check WARN "No subscription manifest zips found in provisioner/inventory/ — highside satellite will need one"
 fi
 
 # ── Bundle artifacts ───────────────────────────────────────────────────────────
 echo
 echo "── Bundle Artifacts ──────────────────────────────────────"
 
-ROLES_COUNT=$(find "$BUNDLE_ROOT/ansible_roles" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+# Provisioner inventory
+if [[ -d "$DRIVE_MOUNT/provisioner/inventory" && \
+      "$(ls -A "$DRIVE_MOUNT/provisioner/inventory" 2>/dev/null)" ]]; then
+    check PASS "provisioner/inventory/ present"
+else
+    check WARN "provisioner/inventory/ is empty or missing"
+fi
+
+# Provisioner containers
+if [[ -d "$DRIVE_MOUNT/provisioner/containers" && \
+      "$(ls -A "$DRIVE_MOUNT/provisioner/containers" 2>/dev/null)" ]]; then
+    check PASS "provisioner/containers/ — provisioner container image present"
+else
+    check WARN "provisioner/containers/ is empty — provisioner container image missing"
+fi
+
+# Ansible roles
+ROLES_COUNT=$(find "$DRIVE_MOUNT/satellite/ansible_roles" \
+    -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
 if [[ "$ROLES_COUNT" -gt 0 ]]; then
-    check PASS "ansible_roles/ present ($ROLES_COUNT roles)"
+    check PASS "satellite/ansible_roles/ present ($ROLES_COUNT roles)"
 else
-    check WARN "ansible_roles/ is empty or missing — compliance roles will not be available"
+    check WARN "satellite/ansible_roles/ is empty or missing — compliance roles will not be available"
 fi
 
-if [[ -d "$BUNDLE_ROOT/bootstrap_init" && "$(ls -A "$BUNDLE_ROOT/bootstrap_init" 2>/dev/null)" ]]; then
-    check PASS "bootstrap_init/ present — kickstart ISO tooling available"
-else
-    check WARN "bootstrap_init/ is empty or missing — no kickstart ISO tooling in bundle"
-fi
-
-MANIFEST_COUNT=$(find "$BUNDLE_ROOT/manifests" -name "*.zip" 2>/dev/null | wc -l)
-if [[ "$MANIFEST_COUNT" -gt 0 ]]; then
-    check PASS "manifests/ — $MANIFEST_COUNT subscription manifest(s) found"
-    find "$BUNDLE_ROOT/manifests" -name "*.zip" | while read -r f; do
-        check INFO "  $(basename "$f")"
-    done
-else
-    check WARN "manifests/ is empty — highside satellite will need subscription manifests"
-fi
-
-DISC_COUNT=$(find "$BUNDLE_ROOT/discovery_images" -type f 2>/dev/null | wc -l)
+# Discovery images
+DISC_COUNT=$(find "$DRIVE_MOUNT/satellite/discovery_images" \
+    -type f 2>/dev/null | wc -l)
 if [[ "$DISC_COUNT" -gt 0 ]]; then
-    check PASS "discovery_images/ — $DISC_COUNT file(s) found"
+    check PASS "satellite/discovery_images/ — $DISC_COUNT file(s) found"
 else
-    check WARN "discovery_images/ is empty — Foreman discovery will need images from Satellite DVD"
+    check WARN "satellite/discovery_images/ is empty — Foreman discovery will need images from Satellite DVD"
 fi
 
-if [[ -d "$BUNDLE_ROOT/container" && "$(ls -A "$BUNDLE_ROOT/container" 2>/dev/null)" ]]; then
-    check PASS "container/ — provisioner container image present"
+# Bootstrap tooling
+if [[ -d "$DRIVE_MOUNT/bootstrap/rhis-builder-bootstrap-init" && \
+      "$(ls -A "$DRIVE_MOUNT/bootstrap/rhis-builder-bootstrap-init" 2>/dev/null)" ]]; then
+    check PASS "bootstrap/rhis-builder-bootstrap-init/ present — kickstart ISO tooling available"
 else
-    check WARN "container/ is empty — save provisioner container image manually before import"
-    check WARN "  podman save <image> -o <bundle>/container/rhis-provisioner.tar"
+    check WARN "bootstrap/rhis-builder-bootstrap-init/ is empty or missing"
 fi
 
-if [[ -d "$BUNDLE_ROOT/inventory" && "$(ls -A "$BUNDLE_ROOT/inventory" 2>/dev/null)" ]]; then
-    check PASS "inventory/ — inventory archive present"
+# Bootstrap ISOs
+BISO_COUNT=$(find "$DRIVE_MOUNT/bootstrap/bootstrap_isos" \
+    -name "*.iso" -type f 2>/dev/null | wc -l)
+if [[ "$BISO_COUNT" -gt 0 ]]; then
+    check PASS "bootstrap/bootstrap_isos/ — $BISO_COUNT ISO(s) found"
 else
-    check WARN "inventory/ is empty or missing"
+    check WARN "bootstrap/bootstrap_isos/ is empty — OEMDRV kickstart ISOs missing"
+fi
+
+# Infra ISOs
+IISO_COUNT=$(find "$DRIVE_MOUNT/bootstrap/infra_isos" \
+    -name "*.iso" -type f 2>/dev/null | wc -l)
+if [[ "$IISO_COUNT" -gt 0 ]]; then
+    check PASS "bootstrap/infra_isos/ — $IISO_COUNT ISO(s) found"
+else
+    check WARN "bootstrap/infra_isos/ is empty — RHEL and Satellite DVD ISOs missing"
 fi
 
 # ── Checksum verification ─────────────────────────────────────────────────────
@@ -221,10 +241,9 @@ if [[ -f "$MANIFEST" ]]; then
     PASSED=0
     FAILED_FILES=()
 
-    # Parse manifest checksum entries using Python3 (always available on RHEL)
     while IFS='|' read -r FPATH FHASH; do
         [[ -z "$FPATH" || -z "$FHASH" ]] && continue
-        FULL_PATH="$BUNDLE_ROOT/$FPATH"
+        FULL_PATH="$DRIVE_MOUNT/$FPATH"
         ((TOTAL++))
         if [[ -f "$FULL_PATH" ]]; then
             ACTUAL=$(sha256sum "$FULL_PATH" 2>/dev/null | awk '{print $1}')

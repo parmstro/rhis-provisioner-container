@@ -9,6 +9,8 @@ version_mode="revision"
 base_version_file="../rhis-base/version24.txt" 
 rhis_schema_version_file="rhis-schema-version.txt"
 
+branch="main"
+tag="latest"
 nocache="false"
 buildargs=""
 ansiblecfg="/etc/ansible/ansible.cfg"
@@ -26,8 +28,11 @@ push_registry_token=""
 usage() {
             echo "Usage: rhis_build_provisioner.sh [options]"
             echo "Options:"
-            echo "    --no-cache - rebuild container from scatch"
+            echo "    --no-cache - rebuild container from scratch"
             echo "    --ansible-ver - specify the AAP API version - one of '2.4' (default) or '2.5'"
+            echo "    --branch - git branch to clone for all rhis-builder repos (default: main)"
+            echo "               individual repos can be pinned via 'version:' in configure_rhis_builder.yml"
+            echo "    --devel - tag the image as :devel instead of :latest; skips registry push (local only)"
             echo "    --ansible-config path_spec - provide the path specification to the ansible.cfg file (default: /etc/ansible/ansible.cfg)"
             echo ""
             echo "    --pull-registry - the name of the remote registry to pull the base image from (default: quay.io)"
@@ -54,7 +59,14 @@ while [[ "$#" -gt 0 ]]; do
     case "$1" in
         -a|--ansible-ver)
             ansiblever="$2"
-            shift # Shift past the value
+            shift
+            ;;
+        -b|--branch)
+            branch="$2"
+            shift
+            ;;
+        -d|--devel)
+            tag="devel"
             ;;
         -n|--no-cache)
             nocache="true"
@@ -151,6 +163,7 @@ build_container() {
   cp build_sat_2_capsules.sh sources/build_sat_2_capsules.sh
   cp build_sat_3_capsules_satellite_post.sh sources/build_sat_3_capsules_satellite_post.sh
   cp build_sat_primary.sh sources/build_sat_primary.sh
+  cp build_sat_disconnected_import.sh sources/build_sat_disconnected_import.sh
   
   cp configure_aap_controller.sh sources/configure_aap_controller.sh
   
@@ -189,9 +202,9 @@ build_container() {
   echo
 
   if [[ $ansiblever == "2.5" ]]; then
-    buildargs="--build-arg ANSIBLE_VER=2.5 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg RHIS_BUILD=$build --build-arg PULL_PATH=$pull_path"
+    buildargs="--build-arg ANSIBLE_VER=2.5 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg RHIS_BUILD=$build --build-arg PULL_PATH=$pull_path --build-arg BRANCH=$branch"
   else
-    buildargs="--build-arg ANSIBLE_VER=2.4 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg RHIS_BUILD=$build --build-arg PULL_PATH=$pull_path"
+    buildargs="--build-arg ANSIBLE_VER=2.4 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg RHIS_BUILD=$build --build-arg PULL_PATH=$pull_path --build-arg BRANCH=$branch"
   fi
 
   if [[ $nocache == "true" ]]; then
@@ -201,14 +214,16 @@ build_container() {
   echo $buildargs
 
   podman build $buildargs -t rhis-provisioner-9-$ansiblever:$version .
-  podman tag localhost/rhis-provisioner-9-$ansiblever:$version rhis-provisioner-9-$ansiblever:latest
+  podman tag localhost/rhis-provisioner-9-$ansiblever:$version rhis-provisioner-9-$ansiblever:$tag
 
-  if [[ $push_registry && $push_registry_login && $push_registry_token ]]; then
+  if [[ $tag == "devel" ]]; then
+    echo "Devel build — skipping registry push. Image tagged locally as rhis-provisioner-9-$ansiblever:devel"
+  elif [[ $push_registry && $push_registry_login && $push_registry_token ]]; then
     podman login -u=$push_registry_login -p=$push_registry_token $push_registry
     podman tag localhost/rhis-provisioner-9-$ansiblever:$version $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:$version
-    podman tag localhost/rhis-provisioner-9-$ansiblever:$version $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:latest
+    podman tag localhost/rhis-provisioner-9-$ansiblever:$version $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:$tag
     podman push $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:$version
-    podman push $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:latest
+    podman push $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:$tag
   fi
 
   echo "Clean sources directory"

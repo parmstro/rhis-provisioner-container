@@ -4,6 +4,7 @@
   hosts: localhost
   gather_facts: false
   vars:
+    branch: "main"
     rhis_root_dir: "/rhis"
     default_inventory_link: "/rhis/vars/external_inventory"
     default_external_tasks_link: "/rhis/vars/external_tasks"
@@ -77,12 +78,12 @@
 
   tasks:
 
-    - name: "Clone each of the project to the container"  # noqa git[latest]  we always want the latest main when we build the container.
+    - name: "Clone each of the project to the container"
       ansible.builtin.git:
         repo: "{{ project.repo }}"
         dest: "{{ rhis_root_dir }}/{{ project.name }}"
         clone: true
-        version: "main"
+        version: "{{ project.version | default(branch) }}"
       loop: "{{ project_list }}"
       loop_control:
         loop_var: project

@@ -5,6 +5,7 @@ ARG RHIS_BASE_VER
 ARG RHIS_SCHEMA_VER
 ARG PULL_PATH
 ARG RHIS_BUILD
+ARG BRANCH=main
 
 FROM ${PULL_PATH}/rhis-base-${OS_VER}-${ANSIBLE_VER}:${RHIS_BASE_VER}
 ARG ANSIBLE_VER
@@ -12,6 +13,7 @@ ARG RHIS_VER
 ARG RHIS_BASE_VER
 ARG RHIS_SCHEMA_VER
 ARG RHIS_BUILD
+ARG BRANCH=main
 ENV ANS_VER=${ANSIBLE_VER}
 ENV VERSION=${RHIS_VER}
 ENV BASE_VER=${RHIS_BASE_VER}
@@ -47,7 +49,7 @@ RUN mkdir -p /rhis/vars/external_inventory && \
 # we probably need to manage this for templates and files that we want to modify as well
 COPY configure_rhis_builder.yml /rhis/configure_rhis_builder.yml
 RUN chmod +x /rhis/configure_rhis_builder.yml
-RUN ansible-playbook /rhis/configure_rhis_builder.yml
+RUN ansible-playbook /rhis/configure_rhis_builder.yml --extra-vars "branch=${BRANCH}"
 
 # copy the reference information
 # COPY podman_commands.txt /rhis/podman_commands.txt
@@ -72,6 +74,7 @@ COPY build_sat_1_capsules_satellite_pre.sh /rhis/rhis-builder-satellite/build_sa
 COPY build_sat_2_capsules.sh /rhis/rhis-builder-satellite/build_sat_2_capsules.sh
 COPY build_sat_3_capsules_satellite_post.sh /rhis/rhis-builder-satellite/build_sat_3_capsules_satellite_post.sh
 COPY build_sat_primary.sh /rhis/rhis-builder-satellite/build_sat_primary.sh
+COPY build_sat_disconnected_import.sh /rhis/rhis-builder-satellite/build_sat_disconnected_import.sh
 
 COPY configure_aap_controller.sh /rhis/rhis-builder-aap/configure_aap_controller.sh
 
@@ -84,8 +87,13 @@ COPY deploy_rhel10_test_hosts.sh /rhis/rhis-builder-pipelines/deploy_rhel10_test
 COPY deploy_sat_capsule_hosts.sh /rhis/rhis-builder-pipelines/deploy_sat_capsule_hosts.sh
 
 COPY run_satellite_role.sh /rhis/rhis-builder-satellite/run_satellite_role.sh
+COPY run_satellite_task.sh /rhis/rhis-builder-satellite/run_satellite_task.sh
+
 COPY run_idm_role.sh /rhis/rhis-builder-idm/run_idm_role.sh
+COPY run_idm_task.sh /rhis/rhis-builder-idm/run_idm_task.sh
+
 COPY run_aap_role.sh /rhis/rhis-builder-aap/run_aap_role.sh
+COPY run_aap_task.sh /rhis/rhis-builder-aap/run_aap_task.sh
 
 # COPY *.sh /rhis/
 RUN chmod +x /rhis/*/*.sh

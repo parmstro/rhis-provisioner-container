@@ -20,6 +20,7 @@
         purge: true
       - name: "rhis-builder-satellite"
         repo: "https://github.com/parmstro/rhis-builder-satellite.git"
+        version: "feat/bootstrap-init-migration"
         purge: true
       - name: "rhis-builder-pipelines"
         repo: "https://github.com/parmstro/rhis-builder-pipelines.git"

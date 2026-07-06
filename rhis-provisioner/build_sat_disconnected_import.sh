@@ -133,26 +133,18 @@ echo -e "  Bundle path on satellite:       ${YELLOW}${BUNDLE_PATH}${NC}"
 
 EXTRA_VARS_FILE="/tmp/rhis_disconnected_extra_vars.yml"
 
-# Read the FDI discovery URL from the inventory satellite_pre.yml rather than
-# detecting the provisioner IP at runtime (hostname is not available in the container).
-_fdi_source_url=$(grep 'satellite_disconnected_discovery_source_url:' \
-    "${HOST_VARS_DIR}/satellite_pre.yml" 2>/dev/null \
-    | awk '{print $2}' | tr -d '"')
-
-if [[ -z "${_fdi_source_url}" ]]; then
-    echo -e "${YELLOW}WARNING: satellite_disconnected_discovery_source_url not found in ${HOST_VARS_DIR}/satellite_pre.yml${NC}"
-    echo -e "${YELLOW}         Foreman Discovery image will not be configured by satellite-installer.${NC}"
-fi
-echo -e "  FDI source URL:    ${YELLOW}${_fdi_source_url:-<not set>}${NC}"
+# satellite_disconnected_discovery_source_url is read from the inventory
+# (satellite_pre.yml host_vars) — do not set it here to avoid overriding
+# the inventory value with an empty string if the grep were to fail.
 
 cat > "$EXTRA_VARS_FILE" <<EOF
 satellite_disconnected: true
 satellite_disconnected_iso_prestaged: true
+satellite_disconnected_iso_mounted: true
 satellite_disconnected_root: "${BUNDLE_PATH}"
 satellite_import_content: true
 satellite_roles_source_path: "${BUNDLE_PATH}/ansible_roles"
 satellite_bundle_stage_path: "/var/satellite_stage/pulp_stage"
-satellite_disconnected_discovery_source_url: "${_fdi_source_url}"
 EOF
 echo -e "  Disconnected extra-vars written: ${YELLOW}${EXTRA_VARS_FILE}${NC}"
 

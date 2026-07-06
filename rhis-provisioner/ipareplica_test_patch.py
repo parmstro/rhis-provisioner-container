@@ -181,6 +181,32 @@ options:
     type: bool
     default: no
     required: no
+  dot_forwarders:
+    description: List of DNS over TLS forwarders
+    type: list
+    elements: str
+    default: []
+    required: no
+  dns_over_tls:
+    description: Configure DNS over TLS
+    type: bool
+    default: no
+    required: no
+  dns_over_tls_cert:
+    description:
+      Certificate to use for DNS over TLS. If empty, a new
+      certificate will be requested from IPA CA
+    type: str
+    required: no
+  dns_over_tls_key:
+    description: Key for certificate specified in dns_over_tls_cert
+    type: str
+    required: no
+  dns_policy:
+    description: Encrypted DNS policy
+    type: str
+    choices: ['relaxed', 'enforced']
+    default: 'relaxed'
 author:
     - Thomas Woerner (@t-woerner)
 '''

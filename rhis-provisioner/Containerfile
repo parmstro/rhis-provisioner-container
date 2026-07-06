@@ -76,6 +76,8 @@ COPY build_sat_3_capsules_satellite_post.sh /rhis/rhis-builder-satellite/build_s
 COPY build_sat_primary.sh /rhis/rhis-builder-satellite/build_sat_primary.sh
 COPY build_sat_disconnected_import.sh /rhis/rhis-builder-satellite/build_sat_disconnected_import.sh
 COPY build_sat_disconnected_export.sh /rhis/rhis-builder-satellite/build_sat_disconnected_export.sh
+COPY build_kvm_hosts.sh /rhis/rhis-builder-kvm/build_kvm_hosts.sh
+COPY build_quadlets.sh /rhis/rhis-builder-quadlet-deploy/build_quadlets.sh
 
 COPY configure_aap_controller.sh /rhis/rhis-builder-aap/configure_aap_controller.sh
 
@@ -96,8 +98,12 @@ COPY run_idm_task.sh /rhis/rhis-builder-idm/run_idm_task.sh
 COPY run_aap_role.sh /rhis/rhis-builder-aap/run_aap_role.sh
 COPY run_aap_task.sh /rhis/rhis-builder-aap/run_aap_task.sh
 
+# patch for replica deploy due to upstream issue with redhat.rhel_idm.ipa_replica
+# COPY ipareplica_test_patch.py /root/.ansible/collections/ansible_collections/redhat/rhel_idm/plugins/modules/ipareplica_test.py
+# RUN chmod +r /root/.ansible/collections/ansible_collections/redhat/rhel_idm/plugins/modules/ipareplica_test.py
+
 # COPY *.sh /rhis/
-RUN chmod +x /rhis/*/*.sh
+RUN chmod +x /rhis/*/*.sh && alias ll='ls -al'
 
 # Cleanup the ansible configuration
 COPY ansible.cfg.clean /etc/ansible/ansible.cfg

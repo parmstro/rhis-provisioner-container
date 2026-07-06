@@ -159,6 +159,8 @@ build_container() {
   cp ansible.cfg.clean sources/ansible.cfg.clean
   cp build_idm_primary.sh sources/build_idm_primary.sh
   cp build_idm_replicas.sh sources/build_idm_replicas.sh
+  cp build_kvm_hosts.sh sources/build_kvm_hosts.sh
+  cp build_quadlets.sh sources/build_quadlets.sh
   cp build_sat_1_capsules_satellite_pre.sh sources/build_sat_1_capsules_satellite_pre.sh
   cp build_sat_2_capsules.sh sources/build_sat_2_capsules.sh
   cp build_sat_3_capsules_satellite_post.sh sources/build_sat_3_capsules_satellite_post.sh
@@ -182,7 +184,7 @@ build_container() {
 
   cp configure_rhis_builder.yml sources/configure_rhis_builder.yml
   cp README.md sources/README.md
-  cp ipareplica_test_patch.py sources/ipareplica_test_patch.py
+  # cp ipareplica_test_patch.py sources/ipareplica_test_patch.py
   
   if [[ $ansiblever == "2.5" ]]; then
     cp deploy_aap_hosts.sh sources/deploy_aap_hosts.sh

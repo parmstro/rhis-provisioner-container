@@ -164,7 +164,8 @@ build_container() {
   cp build_sat_3_capsules_satellite_post.sh sources/build_sat_3_capsules_satellite_post.sh
   cp build_sat_primary.sh sources/build_sat_primary.sh
   cp build_sat_disconnected_import.sh sources/build_sat_disconnected_import.sh
-  
+  cp build_sat_disconnected_export.sh sources/build_sat_disconnected_export.sh
+
   cp configure_aap_controller.sh sources/configure_aap_controller.sh
   
   cp deploy_idm_replica_hosts.sh sources/deploy_idm_replica_hosts.sh

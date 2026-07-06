@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Using rhis-builder-satellite to build sat_primary from default inventory"
+echo "Using rhis-builder-idm to run an idm role."
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color/Normal
 printf "${GREEN}Start Time: %(%T)T${NC}\n" -1

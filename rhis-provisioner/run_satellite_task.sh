@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Using rhis-builder-aap to run an aap role."
+echo "Using rhis-builder-satellite to run a satellite task."
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color/Normal
 printf "${GREEN}Start Time: %(%T)T${NC}\n" -1
@@ -14,8 +14,8 @@ while [[ "$#" -gt 0 ]]; do
             sshuser="$2"
             shift # Shift past the value
             ;;
-        -r|--rolename)
-            rolename="$2"
+        -r|--taskname)
+            taskname="$2"
             shift # Shift past the value
             ;;
         *)
@@ -26,8 +26,8 @@ while [[ "$#" -gt 0 ]]; do
     shift # Shift past the option
 done
 
-if [[ $rolename == "" ]]; then
-  echo "ERROR: A role name is required - exiting."
+if [[ $taskname == "" ]]; then
+  echo "ERROR: A task name is required - exiting."
   exit 1
 fi
 
@@ -36,9 +36,9 @@ ansible-playbook --inventory /rhis/vars/external_inventory/inventory \
                  --ask-pass \
                  --ask-vault-pass \
                  --extra-vars "vault_dir=/rhis/vars/vault" \
-                 --limit=platform_installer \
-                 --extra-vars "role_name=$rolename" \
-                 run_role.yml
+                 --limit=sat_primary \
+                 --extra-vars "task_name=$taskname" \
+                 run_task.yml
 
 duration=$SECONDS
 printf "\n${GREEN}End Time: %(%T)T${NC}\n" -1

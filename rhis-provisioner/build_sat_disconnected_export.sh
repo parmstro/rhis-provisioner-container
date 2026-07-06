@@ -51,8 +51,19 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 if [[ -z "$downstream" ]]; then
-    echo -e "${RED}ERROR: --downstream <fqdn> is required${NC}" >&2
+    echo -e "${RED}ERROR: --downstream <domain> is required${NC}" >&2
     echo "Run '$(basename "$0") --help' for usage." >&2
+    exit 1
+fi
+
+# The playbook prepends 'satellite1.' to form the destination_server FQDN and the
+# content_imports.yml write path.  Passing the full satellite FQDN produces
+# satellite1.satellite1.<domain>, which breaks the export path and the file write.
+if [[ "$downstream" =~ ^[a-zA-Z][a-zA-Z0-9-]*[0-9]+\. ]]; then
+    echo -e "${RED}ERROR: --downstream must be the domain name only, not a host FQDN.${NC}" >&2
+    echo "  Got:      ${downstream}" >&2
+    echo "  The playbook prepends 'satellite1.' automatically." >&2
+    echo "  Example:  --downstream highside.example.ca" >&2
     exit 1
 fi
 

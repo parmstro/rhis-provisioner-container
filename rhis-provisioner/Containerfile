@@ -75,6 +75,7 @@ COPY build_sat_2_capsules.sh /rhis/rhis-builder-satellite/build_sat_2_capsules.s
 COPY build_sat_3_capsules_satellite_post.sh /rhis/rhis-builder-satellite/build_sat_3_capsules_satellite_post.sh
 COPY build_sat_primary.sh /rhis/rhis-builder-satellite/build_sat_primary.sh
 COPY build_sat_disconnected_import.sh /rhis/rhis-builder-satellite/build_sat_disconnected_import.sh
+COPY build_sat_disconnected_export.sh /rhis/rhis-builder-satellite/build_sat_disconnected_export.sh
 
 COPY configure_aap_controller.sh /rhis/rhis-builder-aap/configure_aap_controller.sh
 

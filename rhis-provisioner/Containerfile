@@ -29,9 +29,6 @@ LABEL summary="Provides the latest build of rhis-builder repositories."
 ENTRYPOINT ["/bin/bash", "-c", "echo '##########################################\nWelcome to the RHIS Provisioner container!' && echo 'RHIS Build: '$BUILD && echo 'Provisioner Version: '$VERSION && echo 'From Base Version: '$BASE_VER && echo 'For AAP Version: '$ANS_VER && echo 'RHIS Schema Version: '$SCHEMA_VER && exec /bin/bash"]
 # rpm requirements
 
-# copy our ipareplica patch to the proper location
-COPY sources/ipareplica_test_patch.py /root/.ansible/collections/ansible_collections/redhat/rhel_idm/plugins/modules/ipareplica_test.py
-
 # add the rhis builder repos
 RUN mkdir -p /rhis
 WORKDIR /rhis
@@ -98,9 +95,6 @@ COPY run_idm_task.sh /rhis/rhis-builder-idm/run_idm_task.sh
 COPY run_aap_role.sh /rhis/rhis-builder-aap/run_aap_role.sh
 COPY run_aap_task.sh /rhis/rhis-builder-aap/run_aap_task.sh
 
-# patch for replica deploy due to upstream issue with redhat.rhel_idm.ipa_replica
-# COPY ipareplica_test_patch.py /root/.ansible/collections/ansible_collections/redhat/rhel_idm/plugins/modules/ipareplica_test.py
-# RUN chmod +r /root/.ansible/collections/ansible_collections/redhat/rhel_idm/plugins/modules/ipareplica_test.py
 
 # COPY *.sh /rhis/
 RUN chmod +x /rhis/*/*.sh && alias ll='ls -al'

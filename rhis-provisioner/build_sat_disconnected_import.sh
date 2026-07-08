@@ -9,11 +9,17 @@
 #
 # OPTIONS:
 #   -d | --deployment <name>        Deployment name (e.g. highside.example.ca) [required]
-#   -m | --delivery-method <method> Bundle delivery method: usb | virtual_disk | rsync [required]
+#   -m | --delivery-method <method> Bundle delivery method: usb | virtual_disk | rsync
+#                                   [required unless --config-only]
 #   -s | --source-path <path>       Source path on provisioner for virtual_disk/rsync
-#                                   (default: /mnt/rhis_transfer)
+#                                   (default: /home/ansiblerunner/rhis_transfer)
 #   -u | --sshuser <user>           SSH user for satellite connection (default: ansiblerunner)
 #   -i | --inventory <path>         Inventory path (default: /rhis/vars/external_inventory/inventory)
+#   -c | --config-only              Skip bundle delivery and content import; apply configuration
+#                                   changes only (tags_post_sync). Use after a successful import
+#                                   to update provisioning templates, OS definitions, hostgroups,
+#                                   activation keys, settings, or RBAC without re-importing content.
+#                                   The satellite-installer is not re-run.
 #   -h | --help                     Show this help
 
 GREEN='\033[0;32m'
@@ -26,6 +32,7 @@ delivery_method=""
 source_path="/home/ansiblerunner/rhis_transfer"
 sshuser="ansiblerunner"
 inventory="/rhis/vars/external_inventory/inventory"
+config_only=""
 
 usage() {
     sed -n '/^# USAGE:/,/^[^#]/p' "$0" | grep '^#' | sed 's/^# \{0,1\}//'
@@ -39,6 +46,7 @@ while [[ "$#" -gt 0 ]]; do
         -s|--source-path)       source_path="$2";       shift ;;
         -u|--sshuser)           sshuser="$2";           shift ;;
         -i|--inventory)         inventory="$2";         shift ;;
+        -c|--config-only)       config_only="true" ;;
         -h|--help)              usage ;;
         *)
             echo -e "${RED}ERROR: Unknown option: $1${NC}" >&2
@@ -54,17 +62,23 @@ if [[ -z "$deployment" ]]; then
     exit 1
 fi
 
-case "$delivery_method" in
-    usb|virtual_disk|rsync) ;;
-    "")
-        echo -e "${RED}ERROR: --delivery-method is required (usb | virtual_disk | rsync)${NC}" >&2
-        exit 1 ;;
-    *)
-        echo -e "${RED}ERROR: Unknown delivery method '${delivery_method}' — expected usb, virtual_disk, or rsync${NC}" >&2
-        exit 1 ;;
-esac
+if [[ -z "$config_only" ]]; then
+    case "$delivery_method" in
+        usb|virtual_disk|rsync) ;;
+        "")
+            echo -e "${RED}ERROR: --delivery-method is required (usb | virtual_disk | rsync)${NC}" >&2
+            exit 1 ;;
+        *)
+            echo -e "${RED}ERROR: Unknown delivery method '${delivery_method}' — expected usb, virtual_disk, or rsync${NC}" >&2
+            exit 1 ;;
+    esac
+fi
 
-echo -e "${GREEN}Starting RHIS disconnected satellite import${NC}"
+if [[ -n "$config_only" ]]; then
+    echo -e "${GREEN}Starting RHIS disconnected satellite configuration (config-only)${NC}"
+else
+    echo -e "${GREEN}Starting RHIS disconnected satellite import${NC}"
+fi
 printf "${GREEN}Start Time: %(%T)T${NC}\n" -1
 SECONDS=0
 
@@ -88,56 +102,73 @@ if [[ ! -d "$HOST_VARS_DIR" ]]; then
 fi
 
 echo -e "  Satellite:         ${YELLOW}${SAT_HOST}${NC}"
-echo -e "  Delivery method:   ${YELLOW}${delivery_method}${NC}"
+[[ -z "$config_only" ]] && echo -e "  Delivery method:   ${YELLOW}${delivery_method}${NC}"
 echo -e "  host_vars dir:     ${YELLOW}${HOST_VARS_DIR}${NC}"
 
-# ── Step 1: bundle_delivery.yml ──────────────────────────────────────────────
-echo ""
-echo -e "${GREEN}── Step 1/3: Delivering bundle to satellite ────────────────────────────────${NC}"
+if [[ -n "$config_only" ]]; then
+    # ── Config-only: skip bundle delivery and import ──────────────────────────
+    echo ""
+    echo -e "${GREEN}── Step 1/1: Applying configuration (main.yml --tags tags_post_sync) ────────${NC}"
+    echo -e "${YELLOW}  Satellite-installer will not be re-run. Expect 10–20 minutes.${NC}"
 
-DELIVERY_EXTRA_VARS="bundle_delivery_method=${delivery_method}"
-[[ "$delivery_method" != "usb" ]] && DELIVERY_EXTRA_VARS+=" bundle_delivery_source_path=${source_path}"
+    ansible-playbook \
+        --inventory "$inventory" \
+        --user "$sshuser" \
+        --private-key /root/.ssh/id_ed25519 \
+        --vault-password-file /root/.ssh/vault.txt \
+        --extra-vars "vault_dir=/rhis/vars/vault vars_dir=/rhis/vars/host_vars" \
+        --extra-vars "satellite_disconnected=true satellite_cdn_configuration_type=export_sync" \
+        --tags tags_post_sync \
+        --limit=sat_primary \
+        main.yml
+else
+    # ── Step 1: bundle_delivery.yml ──────────────────────────────────────────
+    echo ""
+    echo -e "${GREEN}── Step 1/3: Delivering bundle to satellite ────────────────────────────────${NC}"
 
-ansible-playbook \
-    --inventory "$inventory" \
-    --user "$sshuser" \
-    --private-key /root/.ssh/id_ed25519 \
-    --vault-password-file /root/.ssh/vault.txt \
-    --extra-vars "vault_dir=/rhis/vars/vault vars_dir=/rhis/vars/host_vars" \
-    --extra-vars "$DELIVERY_EXTRA_VARS" \
-    --limit=sat_primary \
-    bundle_delivery.yml
+    DELIVERY_EXTRA_VARS="bundle_delivery_method=${delivery_method}"
+    [[ "$delivery_method" != "usb" ]] && DELIVERY_EXTRA_VARS+=" bundle_delivery_source_path=${source_path}"
 
-EXIT_CODE=$?
-if [[ $EXIT_CODE -ne 0 ]]; then
-    echo -e "${RED}bundle_delivery.yml failed with exit code ${EXIT_CODE}.${NC}" >&2
-    exit $EXIT_CODE
-fi
+    ansible-playbook \
+        --inventory "$inventory" \
+        --user "$sshuser" \
+        --private-key /root/.ssh/id_ed25519 \
+        --vault-password-file /root/.ssh/vault.txt \
+        --extra-vars "vault_dir=/rhis/vars/vault vars_dir=/rhis/vars/host_vars" \
+        --extra-vars "$DELIVERY_EXTRA_VARS" \
+        --limit=sat_primary \
+        bundle_delivery.yml
 
-# ── Step 2: Write disconnected extra-vars for main.yml ─────────────────────────
-# bundle_delivery_bundle_path (C3: <stage_path>/satellite or <usb_mount>/satellite)
-# is written by bundle_delivery validate.yml to /tmp/rhis_bundle_path.txt.
-# content_imports.yml is already present in the inventory archive (C6 — remapped
-# at export time, no sed remap needed here).
+    EXIT_CODE=$?
+    if [[ $EXIT_CODE -ne 0 ]]; then
+        echo -e "${RED}bundle_delivery.yml failed with exit code ${EXIT_CODE}.${NC}" >&2
+        exit $EXIT_CODE
+    fi
 
-echo ""
-echo -e "${GREEN}── Step 2/3: Preparing disconnected build extra-vars ─────────────────────────${NC}"
+    # ── Step 2: Write disconnected extra-vars for main.yml ───────────────────
+    # bundle_delivery_bundle_path (C3: <stage_path>/satellite or <usb_mount>/satellite)
+    # is written by bundle_delivery validate.yml to /tmp/rhis_bundle_path.txt.
+    # content_imports.yml is already present in the inventory archive (C6 — remapped
+    # at export time, no sed remap needed here).
 
-BUNDLE_PATH=$(cat /tmp/rhis_bundle_path.txt 2>/dev/null)
-if [[ -z "$BUNDLE_PATH" ]]; then
-    echo -e "${RED}ERROR: Could not read bundle path from /tmp/rhis_bundle_path.txt${NC}" >&2
-    echo -e "${RED}       Check bundle_delivery.yml output — validate.yml writes this file.${NC}" >&2
-    exit 1
-fi
-echo -e "  Bundle path on satellite:       ${YELLOW}${BUNDLE_PATH}${NC}"
+    echo ""
+    echo -e "${GREEN}── Step 2/3: Preparing disconnected build extra-vars ─────────────────────────${NC}"
 
-EXTRA_VARS_FILE="/tmp/rhis_disconnected_extra_vars.yml"
+    BUNDLE_PATH=$(cat /tmp/rhis_bundle_path.txt 2>/dev/null)
+    if [[ -z "$BUNDLE_PATH" ]]; then
+        echo -e "${RED}ERROR: Could not read bundle path from /tmp/rhis_bundle_path.txt${NC}" >&2
+        echo -e "${RED}       Check bundle_delivery.yml output — validate.yml writes this file.${NC}" >&2
+        exit 1
+    fi
+    echo -e "  Bundle path on satellite:       ${YELLOW}${BUNDLE_PATH}${NC}"
 
-# satellite_disconnected_discovery_source_url is read from the inventory
-# (satellite_pre.yml host_vars) — do not set it here to avoid overriding
-# the inventory value with an empty string if the grep were to fail.
+    EXTRA_VARS_FILE="/tmp/rhis_disconnected_extra_vars.yml"
 
-cat > "$EXTRA_VARS_FILE" <<EOF
+    # satellite_disconnected_discovery_source_url is read from the inventory
+    # (satellite_pre.yml host_vars) — do not set it here to avoid overriding
+    # the inventory value with an empty string if the grep were to fail.
+
+    cat > "$EXTRA_VARS_FILE" <<EOF
 satellite_disconnected: true
 satellite_disconnected_iso_prestaged: true
 satellite_disconnected_iso_mounted: true
@@ -146,22 +177,23 @@ satellite_import_content: true
 satellite_roles_source_path: "${BUNDLE_PATH}/ansible_roles"
 satellite_bundle_stage_path: "/var/satellite_stage/pulp_stage"
 EOF
-echo -e "  Disconnected extra-vars written: ${YELLOW}${EXTRA_VARS_FILE}${NC}"
+    echo -e "  Disconnected extra-vars written: ${YELLOW}${EXTRA_VARS_FILE}${NC}"
 
-# ── Step 3: main.yml ─────────────────────────────────────────────────────────
-echo ""
-echo -e "${GREEN}── Step 3/3: Running satellite build (main.yml) ─────────────────────────────${NC}"
-echo -e "${YELLOW}  This step installs and configures the satellite — expect 60+ minutes.${NC}"
+    # ── Step 3: main.yml ─────────────────────────────────────────────────────
+    echo ""
+    echo -e "${GREEN}── Step 3/3: Running satellite build (main.yml) ─────────────────────────────${NC}"
+    echo -e "${YELLOW}  This step installs and configures the satellite — expect 60+ minutes.${NC}"
 
-ansible-playbook \
-    --inventory "$inventory" \
-    --user "$sshuser" \
-    --private-key /root/.ssh/id_ed25519 \
-    --vault-password-file /root/.ssh/vault.txt \
-    --extra-vars "vault_dir=/rhis/vars/vault vars_dir=/rhis/vars/host_vars" \
-    --extra-vars "@${EXTRA_VARS_FILE}" \
-    --limit=sat_primary \
-    main.yml
+    ansible-playbook \
+        --inventory "$inventory" \
+        --user "$sshuser" \
+        --private-key /root/.ssh/id_ed25519 \
+        --vault-password-file /root/.ssh/vault.txt \
+        --extra-vars "vault_dir=/rhis/vars/vault vars_dir=/rhis/vars/host_vars" \
+        --extra-vars "@${EXTRA_VARS_FILE}" \
+        --limit=sat_primary \
+        main.yml
+fi
 
 EXIT_CODE=$?
 
@@ -176,12 +208,16 @@ fi
 
 echo ""
 echo -e "${GREEN}════════════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}  RHIS Disconnected Satellite Build Complete${NC}"
+if [[ -n "$config_only" ]]; then
+    echo -e "${GREEN}  RHIS Disconnected Satellite Configuration Complete${NC}"
+else
+    echo -e "${GREEN}  RHIS Disconnected Satellite Build Complete${NC}"
+fi
 echo -e "${GREEN}════════════════════════════════════════════════════════════════${NC}"
 echo ""
 echo -e "  Satellite:   ${YELLOW}${SAT_HOST}${NC}"
 echo -e "  Deployment:  ${YELLOW}${deployment}${NC}"
-echo -e "  Bundle:      ${YELLOW}${BUNDLE_PATH}${NC}"
+[[ -z "$config_only" ]] && echo -e "  Bundle:      ${YELLOW}${BUNDLE_PATH}${NC}"
 TZ=UTC0 printf "  Elapsed:     ${YELLOW}%(%T)T${NC}\n" $duration
 echo ""
 echo -e "${GREEN}════════════════════════════════════════════════════════════════${NC}"

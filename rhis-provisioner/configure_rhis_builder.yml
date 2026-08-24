@@ -20,7 +20,7 @@
         purge: true
       - name: "rhis-builder-satellite"
         repo: "https://github.com/parmstro/rhis-builder-satellite.git"
-        version: "feat/bootstrap-init-migration"
+        version: "main"
         purge: true
       - name: "rhis-builder-pipelines"
         repo: "https://github.com/parmstro/rhis-builder-pipelines.git"
@@ -52,6 +52,7 @@
       - name: "rhis-builder-kvm"
         repo: "https://github.com/parmstro/rhis-builder-kvm.git"
         purge: true
+        version: "feature/kvm-iscsi-lvmlock"
       - name: "rhis-builder-bootstrap-init"
         repo: "https://github.com/parmstro/rhis-builder-bootstrap-init.git"
         purge: true

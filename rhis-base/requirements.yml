@@ -5,6 +5,8 @@
 
 # these collections are compatible with ansible core 2.14.18 shipping with rhel 9.7
 collections:
+  - name: "ansible.controller"
+    version: ">4.7"
   - name: "ansible.utils"
     version: "<6.0.0"
   - name: "ansible.posix"

@@ -1,0 +1,76 @@
+---
+# Configuration for rhis-base security scanning pipeline.
+#
+# Read by: scan_base_pre_build.yml, scan_base_post_build.yml
+# Separation of config and code — edit this file, not the playbooks.
+#
+# Usage:
+#   ansible-playbook scan_base_pre_build.yml -e os_ver=9 -e ansible_cfg=/etc/ansible/ansible.cfg
+#   ansible-playbook scan_base_post_build.yml -e image_name=rhis-base-9-2.5:1.0.22
+
+scan_tools:
+  trivy:
+    path: "trivy"
+    version: "0.74.0"
+    github_repo: "aquasecurity/trivy"
+    offline_mode: false
+    cache_dir: "/var/lib/rhis-scan/trivy"
+    severity: "CRITICAL,HIGH"
+    skip_dirs: ""
+  grype:
+    path: "grype"
+    version: "0.119.0"
+    github_repo: "anchore/grype"
+    offline_mode: false
+    db_cache_dir: "/var/lib/rhis-scan/grype"
+    severity_cutoff: "high"
+    # Paths excluded from Grype scanning. Each must be justified.
+    # These are upstream collection files containing pip version pins that
+    # are never installed — all Python deps come from RHEL RPMs via dnf.
+    exclude_paths:
+      # upstream pip deps for azure modules — not used; we install python3-azure-* RPMs
+      - "**/azure/azcollection/requirements.txt"
+      # ansible-test sanity harness deps — dev tooling, never installed in container
+      - "**/azure/azcollection/sanity-requirements.txt"
+      # ansible-test unit/integration deps — dev tooling, never installed in container
+      - "**/ansible/netcommon/test-requirements.txt"
+      # example application shipped with collection — not executed or installed
+      - "**/containers/podman/playbooks/examples/model_server/requirements.txt"
+      # GitHub Actions workflow metadata shipped with collections — not runtime content
+      - "**/.github"
+  syft:
+    path: "syft"
+    version: "1.52.0"
+    github_repo: "anchore/syft"
+    output_format: "spdx-json"
+  cosign:
+    path: "cosign"
+    version: "3.1.3"
+    github_repo: "sigstore/cosign"
+    signing_method: "keyless"
+  clamav:
+    path: "clamscan"
+    freshclam_path: "freshclam"
+    db_dir: ""
+    offline_mode: false
+    max_filesize: "100M"
+    max_scansize: "400M"
+
+scan_policy:
+  fail_on_severity: "CRITICAL"
+  max_allowed_high: 0
+  fail_on_malware: true
+  fail_on_signature_mismatch: true
+
+reporting:
+  reports_dir: "scan-reports"
+  trivy_format: "json"
+  grype_format: "json"
+  syft_format: "spdx-json"
+  keep_reports: 10
+
+pre_build:
+  scan_container_image: ""
+  requirements_file: ""
+  collections_install_path: "/tmp/rhis-scan-collections"
+  cleanup_after_scan: true

@@ -1,0 +1,140 @@
+---
+# Pre-build scanning for rhis-provisioner playbook content.
+#
+# The provisioner adds only YAML playbooks and bash helper scripts.
+# All binaries, collections, and Python deps live in rhis-base and
+# are scanned there. This playbook runs ansible-lint with the safety
+# profile against the playbook content that will be copied into the image.
+#
+# Usage:
+#   ansible-playbook scan_provisioner_pre_build.yml
+#   ansible-playbook scan_provisioner_pre_build.yml -e config_file=./scan_provisioner_config.yml
+
+- name: Pre-build lint scan for rhis-provisioner content
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    config_file: "{{ playbook_dir }}/scan_provisioner_config.yml"
+    run_user: "{{ lookup('env', 'USER') }}"
+
+  tasks:
+
+    - name: Set scan timestamp
+      ansible.builtin.set_fact:
+        scan_timestamp: "{{ now(utc=true).strftime('%Y%m%d-%H%M%S') }}"
+
+    - name: Fail if running user cannot be determined
+      ansible.builtin.fail:
+        msg: "Cannot determine running user. The USER environment variable is not set."
+      when: run_user == ""
+
+    - name: Read scan configuration
+      ansible.builtin.slurp:
+        src: "{{ config_file }}"
+      register: scan_config_raw
+
+    - name: Parse scan configuration
+      ansible.builtin.set_fact:
+        scan_config: "{{ scan_config_raw.content | b64decode | from_yaml }}"
+
+    - name: Set reports base path
+      ansible.builtin.set_fact:
+        reports_base: "{{ playbook_dir }}/{{ scan_config.reporting.reports_dir | default('scan-reports') }}"
+
+    - name: Set reports directory (standalone fallback)
+      ansible.builtin.set_fact:
+        reports_dir: "{{ playbook_dir }}/{{ scan_config.reporting.reports_dir | default('scan-reports') }}/build-lint-{{ scan_timestamp }}"
+      when: reports_dir is not defined or reports_dir == ''
+
+    - name: Create reports directory
+      ansible.builtin.file:
+        path: "{{ reports_dir }}"
+        state: directory
+        owner: "{{ run_user }}"
+        group: "{{ run_user }}"
+        mode: "0755"
+
+    - name: Verify ansible-lint is available
+      ansible.builtin.command:
+        cmd: "which {{ scan_config.scan_tools.ansible_lint.path }}"
+      register: lint_check
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if ansible-lint is missing
+      ansible.builtin.fail:
+        msg: >-
+          ansible-lint not found at '{{ scan_config.scan_tools.ansible_lint.path }}'.
+          Install with: pip install ansible-lint
+      when: lint_check.rc != 0
+
+    - name: Find playbook YAML files to lint
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}"
+        patterns: "*.yml,*.yaml"
+        excludes: "scan_*.yml,*config*.yml"
+        recurse: false
+      register: playbook_files
+
+    - name: Run ansible-lint on playbook content
+      ansible.builtin.command:
+        cmd: >-
+          {{ scan_config.scan_tools.ansible_lint.path }}
+          --profile {{ scan_config.scan_tools.ansible_lint.profile }}
+          --nocolor
+          {{ playbook_files.files | map(attribute='path') | join(' ') }}
+      register: lint_result
+      changed_when: false
+      failed_when: false
+
+    - name: Save lint report
+      ansible.builtin.copy:
+        dest: "{{ reports_dir }}/ansible-lint.txt"
+        owner: "{{ run_user }}"
+        group: "{{ run_user }}"
+        mode: "0644"
+        content: |
+          ansible-lint Report ({{ scan_config.scan_tools.ansible_lint.profile }} profile)
+          Timestamp: {{ scan_timestamp }}
+          Exit code: {{ lint_result.rc }}
+
+          {{ lint_result.stdout | default('') }}
+          {{ lint_result.stderr | default('') }}
+
+    - name: Display lint summary
+      ansible.builtin.debug:
+        msg: |
+          ══════════════════════════════════════════════════════════════════════
+            Pre-Build Lint Scan — rhis-provisioner
+            Timestamp: {{ scan_timestamp }}
+          ══════════════════════════════════════════════════════════════════════
+
+          ansible-lint ({{ scan_config.scan_tools.ansible_lint.profile }} profile):
+            Exit code: {{ lint_result.rc }}
+            Report: {{ reports_dir }}/ansible-lint.txt
+
+          ══════════════════════════════════════════════════════════════════════
+
+    - name: Enforce lint policy
+      ansible.builtin.fail:
+        msg: |
+          ╔══════════════════════════════════════════════════════════════════╗
+          ║  PRE-BUILD LINT FAILED — Policy Violation                      ║
+          ╚══════════════════════════════════════════════════════════════════╝
+
+          ansible-lint found issues with the safety profile.
+          Review: {{ reports_dir }}/ansible-lint.txt
+
+          Build aborted.
+      when: scan_config.scan_policy.fail_on_lint | default(true) and lint_result.rc != 0
+
+    - name: Prune old build reports
+      ansible.builtin.shell:
+        cmd: >-
+          ls -1dt {{ reports_base }}/build-*/ 2>/dev/null
+          | tail -n +{{ (scan_config.reporting.keep_reports | default(10)) + 1 }}
+          | xargs -r rm -rf
+      changed_when: false
+      failed_when: false

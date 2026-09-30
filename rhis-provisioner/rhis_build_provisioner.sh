@@ -13,6 +13,7 @@ rhis_schema_version_file="rhis-schema-version.txt"
 branch="main"
 tag="latest"
 nocache="false"
+do_scan="true"
 buildargs=""
 ansiblecfg="/etc/ansible/ansible.cfg"
 
@@ -48,6 +49,8 @@ usage() {
             echo "    --push-registry-token - the authentication token for the push registry"
             echo ""
             echo "    --version-mode - increment major, minor, or revision version of the build"
+            echo "    --scan - enable security scanning (default: enabled)"
+            echo "    --no-scan - skip security scanning for quick dev iterations"
             echo "Specifying 'localhost' for either the pull or push registry will ignore the corresponding repo option."
             exit 1
 }
@@ -117,15 +120,68 @@ while [[ "$#" -gt 0 ]]; do
         -m|--version-mode)
             version_mode="$2"
             shift
-            ;; 
+            ;;
+        -s|--scan)
+            do_scan="true"
+            ;;
+        --no-scan)
+            do_scan="false"
+            ;;
         -h|--help)
-            echo "Unknown option: $1" >&2; usage ;;
+            usage ;;
 
         *)
             echo "Unknown option: $1" >&2; usage ;;
     esac
     shift # Shift past the option
 done
+
+stage_sources() {
+  mkdir -p sources
+  rm -f sources/*
+
+  cp add_softlinks.yml sources/add_softlinks.yml
+  cp $ansiblecfg sources/ansible.cfg
+  cp ansible.cfg.clean sources/ansible.cfg.clean
+  cp build_idm_primary.sh sources/build_idm_primary.sh
+  cp build_idm_replicas.sh sources/build_idm_replicas.sh
+  cp build_kvm_hosts.sh sources/build_kvm_hosts.sh
+  cp build_quadlets.sh sources/build_quadlets.sh
+  cp build_sat_1_capsules_satellite_pre.sh sources/build_sat_1_capsules_satellite_pre.sh
+  cp build_sat_2_capsules.sh sources/build_sat_2_capsules.sh
+  cp build_sat_3_capsules_satellite_post.sh sources/build_sat_3_capsules_satellite_post.sh
+  cp build_sat_primary.sh sources/build_sat_primary.sh
+  cp build_sat_disconnected_import.sh sources/build_sat_disconnected_import.sh
+  cp build_sat_disconnected_export.sh sources/build_sat_disconnected_export.sh
+
+  cp configure_aap_controller.sh sources/configure_aap_controller.sh
+
+  cp deploy_idm_replica_hosts.sh sources/deploy_idm_replica_hosts.sh
+  cp deploy_kvm_hypervisors.sh sources/deploy_kvm_hypervisors.sh
+  cp deploy_quadlet_hosts.sh sources/deploy_quadlet_hosts.sh
+  cp deploy_rhel8_test_hosts.sh sources/deploy_rhel8_test_hosts.sh
+  cp deploy_rhel9_test_hosts.sh sources/deploy_rhel9_test_hosts.sh
+  cp deploy_rhel10_test_hosts.sh sources/deploy_rhel10_test_hosts.sh
+  cp deploy_sat_capsule_hosts.sh sources/deploy_sat_capsule_hosts.sh
+
+  cp run_satellite_role.sh sources/run_satellite_role.sh
+  cp run_satellite_role_task.sh sources/run_satellite_role_task.sh
+  cp run_satellite_task.sh sources/run_satellite_task.sh
+  cp run_idm_role.sh sources/run_idm_role.sh
+  cp run_idm_role_task.sh sources/run_idm_role_task.sh
+  cp run_idm_task.sh sources/run_idm_task.sh
+  cp run_aap_role.sh sources/run_aap_role.sh
+  cp run_aap_role_task.sh sources/run_aap_role_task.sh
+  cp run_aap_task.sh sources/run_aap_task.sh
+
+  cp configure_rhis_builder.yml sources/configure_rhis_builder.yml
+  cp README.md sources/README.md
+  # cp ipareplica_test_patch.py sources/ipareplica_test_patch.py
+
+  cp deploy_aap_hosts.sh sources/deploy_aap_hosts.sh
+  cp build_aap_controller.sh sources/build_aap_controller.sh
+  cp build_aap_standalone_hub.sh sources/build_aap_standalone_hub.sh
+}
 
 build_container() {
   echo "Starting build of rhis-provisioner container version: $version for AAP version: $ansiblever"
@@ -146,56 +202,10 @@ build_container() {
     pull_path="$pull_registry"
   fi
 
-  if [[ -n "$push_registry" && -n "$push_registry_login" && -n "$push_registry_token" ]]; then
-    echo "Using $push_registry as the push registry. Logging in."
-    podman login $push_registry -u $push_registry_login -p $push_registry_token
-  else
-    echo "push_registry parameters not defined. Continuing with local build."
-  fi
-
   schema_version=$(cat $rhis_schema_version_file)
 
-  echo "Clean sources directory"
-  mkdir -p sources
-  rm -f sources/*
+  stage_sources
 
-  echo "Configure sources"
-  cp add_softlinks.yml sources/add_softlinks.yml
-  cp $ansiblecfg sources/ansible.cfg
-  cp ansible.cfg.clean sources/ansible.cfg.clean
-  cp build_idm_primary.sh sources/build_idm_primary.sh
-  cp build_idm_replicas.sh sources/build_idm_replicas.sh
-  cp build_kvm_hosts.sh sources/build_kvm_hosts.sh
-  cp build_quadlets.sh sources/build_quadlets.sh
-  cp build_sat_1_capsules_satellite_pre.sh sources/build_sat_1_capsules_satellite_pre.sh
-  cp build_sat_2_capsules.sh sources/build_sat_2_capsules.sh
-  cp build_sat_3_capsules_satellite_post.sh sources/build_sat_3_capsules_satellite_post.sh
-  cp build_sat_primary.sh sources/build_sat_primary.sh
-  cp build_sat_disconnected_import.sh sources/build_sat_disconnected_import.sh
-  cp build_sat_disconnected_export.sh sources/build_sat_disconnected_export.sh
-
-  cp configure_aap_controller.sh sources/configure_aap_controller.sh
-  
-  cp deploy_idm_replica_hosts.sh sources/deploy_idm_replica_hosts.sh
-  cp deploy_kvm_hypervisors.sh sources/deploy_kvm_hypervisors.sh
-  cp deploy_quadlet_hosts.sh sources/deploy_quadlet_hosts.sh
-  cp deploy_rhel8_test_hosts.sh sources/deploy_rhel8_test_hosts.sh
-  cp deploy_rhel9_test_hosts.sh sources/deploy_rhel9_test_hosts.sh
-  cp deploy_rhel10_test_hosts.sh sources/deploy_rhel10_test_hosts.sh
-  cp deploy_sat_capsule_hosts.sh sources/deploy_sat_capsule_hosts.sh
-
-  cp run_satellite_role.sh sources/run_satellite_role.sh
-  cp run_idm_role.sh sources/run_idm_role.sh
-  cp run_aap_role.sh sources/run_aap_role.sh
-
-  cp configure_rhis_builder.yml sources/configure_rhis_builder.yml
-  cp README.md sources/README.md
-  # cp ipareplica_test_patch.py sources/ipareplica_test_patch.py
-  
-  cp deploy_aap_hosts.sh sources/deploy_aap_hosts.sh
-  cp build_aap_controller.sh sources/build_aap_controller.sh
-  cp build_aap_standalone_hub.sh sources/build_aap_standalone_hub.sh
-  
   echo
   echo "Running 'podman build' with the following parameters:"
   echo
@@ -205,7 +215,7 @@ build_container() {
   echo
 
   buildargs="--build-arg ANSIBLE_VER=2.5 --build-arg OS_VER=$osver --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg RHIS_BUILD=$build --build-arg PULL_PATH=$pull_path --build-arg BRANCH=$branch"
-  
+
   if [[ $nocache == "true" ]]; then
     buildargs+=" --no-cache"
   fi
@@ -213,20 +223,42 @@ build_container() {
   echo $buildargs
 
   podman build $buildargs -t rhis-provisioner-$osver-$ansiblever:$version .
-  podman tag localhost/rhis-provisioner-$osver-$ansiblever:$version rhis-provisioner-$osver-$ansiblever:$tag
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR: podman build failed."
+    rm -f sources/*
+    return 1
+  fi
 
+  podman tag localhost/rhis-provisioner-$osver-$ansiblever:$version rhis-provisioner-$osver-$ansiblever:$tag
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR: podman tag failed."
+    return 1
+  fi
+
+  rm -f sources/*
+  return 0
+}
+
+push_container() {
   if [[ $tag == "devel" ]]; then
     echo "Devel build — skipping registry push. Image tagged locally as rhis-provisioner-$osver-$ansiblever:devel"
-  elif [[ $push_registry && $push_registry_login && $push_registry_token ]]; then
+    return 0
+  elif [[ -n "$push_registry" && -n "$push_registry_login" && -n "$push_registry_token" ]]; then
+    echo "Pushing to $push_registry/$push_registry_repo"
     podman login -u=$push_registry_login -p=$push_registry_token $push_registry
     podman tag localhost/rhis-provisioner-$osver-$ansiblever:$version $push_registry/$push_registry_repo/rhis-provisioner-$osver-$ansiblever:$version
     podman tag localhost/rhis-provisioner-$osver-$ansiblever:$version $push_registry/$push_registry_repo/rhis-provisioner-$osver-$ansiblever:$tag
     podman push $push_registry/$push_registry_repo/rhis-provisioner-$osver-$ansiblever:$version
+    if [[ $? -ne 0 ]]; then
+      echo "ERROR: podman push failed."
+      return 1
+    fi
     podman push $push_registry/$push_registry_repo/rhis-provisioner-$osver-$ansiblever:$tag
+    return $?
+  else
+    echo "push_registry parameters not defined. Local build only."
+    return 0
   fi
-
-  echo "Clean sources directory"
-  rm -f sources/*
 }
 
 get_base_version() {
@@ -298,15 +330,79 @@ fi
 base_version=$(get_base_version)
 version=$(increment_version "$version_mode")
 build=$(cat ../build.txt)
+image_name="localhost/rhis-provisioner-$osver-$ansiblever:$version"
 
-# Run main commands
-build_container
+# ── Create build reports directory ──────────────────────────────────────
+build_timestamp=$(date -u +%Y%m%d-%H%M%S)
+reports_dir="./scan-reports/build-ubi${osver}-${build_timestamp}"
 
-# Check the exit status of the main commands
-if [[ $? -eq 0 ]]; then
-    # If build was successful, increment the revision
-    echo "Successfully built $version for operating system $osver - Updating version file."
-    update_version
+# ── Pre-build scanning ──────────────────────────────────────────────────
+if [[ "$do_scan" == "true" ]]; then
+    echo "Running pre-build lint scan..."
+    ./scan_provisioner.sh --phase pre-build --reports-dir "$reports_dir"
+    if [[ $? -ne 0 ]]; then
+        echo "Pre-build lint scan failed. Aborting build."
+        exit 3
+    fi
 else
-    echo "One or more build commands failed. Version file not updated."
+    echo "Scanning disabled (--no-scan). Skipping pre-build scan."
 fi
+
+# ── Build ────────────────────────────────────────────────────────────────
+build_container
+if [[ $? -ne 0 ]]; then
+    echo "Build failed. Version file not updated."
+    exit 4
+fi
+
+# ── Registry login (before post-build so push+sign can happen in pipeline) ──
+registry_image=""
+if [[ -n "$push_registry" && -n "$push_registry_repo" ]]; then
+    registry_image="${push_registry}/${push_registry_repo}/rhis-provisioner-${osver}-${ansiblever}:${version}"
+    if [[ -n "$push_registry_login" && -n "$push_registry_token" ]]; then
+        echo "Logging in to ${push_registry}..."
+        podman login -u="$push_registry_login" -p="$push_registry_token" "$push_registry"
+        if [[ $? -ne 0 ]]; then
+            echo "ERROR: Registry login failed."
+            exit 5
+        fi
+    fi
+    podman tag "$image_name" "$registry_image"
+    podman tag "$image_name" "${push_registry}/${push_registry_repo}/rhis-provisioner-${osver}-${ansiblever}:${tag}"
+fi
+
+# ── Post-build scanning + push + sign ───────────────────────────────────
+if [[ "$do_scan" == "true" ]]; then
+    echo "Running post-build security scan..."
+    scan_args=(--phase post-build --image "$image_name" --reports-dir "$reports_dir")
+    if [[ -n "$registry_image" ]]; then
+        scan_args+=(--registry-image "$registry_image")
+    fi
+    ./scan_provisioner.sh "${scan_args[@]}"
+    if [[ $? -ne 0 ]]; then
+        echo "Post-build scan failed. Image built but not pushed. Version file not updated."
+        exit 6
+    fi
+else
+    echo "Scanning disabled (--no-scan). Skipping post-build scan."
+    if [[ -n "$registry_image" ]]; then
+        push_container
+        if [[ $? -ne 0 ]]; then
+            echo "Push failed. Version file not updated."
+            exit 7
+        fi
+    fi
+fi
+
+# ── Push :latest tag ────────────────────────────────────────────────────
+if [[ -n "$registry_image" ]]; then
+    echo "Pushing :${tag} tag..."
+    podman push "${push_registry}/${push_registry_repo}/rhis-provisioner-${osver}-${ansiblever}:${tag}"
+    if [[ $? -ne 0 ]]; then
+        echo "WARNING: :${tag} tag push failed (versioned image already pushed)."
+    fi
+fi
+
+# ── Version update only on full success ──────────────────────────────────
+echo "Successfully built, scanned, and pushed $version for operating system $osver - Updating version file."
+update_version

@@ -1,0 +1,814 @@
+---
+# Install and manage security scanning tools on the build host.
+#
+# Reads pinned versions from scan_collections_config.yml.
+# Introspects installed versions, queries GitHub for latest releases,
+# and reports upgrade availability — same discipline as collection
+# version management.
+#
+# Usage:
+#   ansible-playbook install_scan_tools.yml
+#   ansible-playbook install_scan_tools.yml -e upgrade=true
+#   ansible-playbook install_scan_tools.yml -e offline_mode=true
+#   ansible-playbook install_scan_tools.yml -e trivy_version=0.60.0
+
+- name: Install security scanning tools
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    offline_mode: false
+    upgrade: false
+    config_file: "{{ playbook_dir }}/scan_collections_config.yml"
+    install_dir: "/usr/local/bin"
+    run_user: "{{ lookup('env', 'USER') }}"
+    trivy_version: ""
+    grype_version: ""
+    syft_version: ""
+    cosign_version: ""
+    tool_status: []
+
+  tasks:
+
+    # ── Preflight ─────────────────────────────────────────────────────────
+
+    - name: Fail if running user cannot be determined
+      ansible.builtin.fail:
+        msg: "Cannot determine running user. The USER environment variable is not set."
+      when: run_user == ""
+
+    - name: Resolve GitHub token from environment
+      ansible.builtin.set_fact:
+        github_token: "{{ lookup('env', 'GITHUB_TOKEN') | default(lookup('env', 'GH_TOKEN'), true) }}"
+
+    - name: Fall back to gh CLI token
+      when: github_token == ''
+      block:
+        - name: Extract token from gh CLI
+          ansible.builtin.command:
+            cmd: "gh auth token"
+          register: gh_cli_token
+          changed_when: false
+          failed_when: false
+
+        - name: Set GitHub token from gh CLI
+          ansible.builtin.set_fact:
+            github_token: "{{ gh_cli_token.stdout | trim }}"
+          when: gh_cli_token.rc == 0 and gh_cli_token.stdout | trim != ''
+
+    - name: Report GitHub API authentication status
+      ansible.builtin.debug:
+        msg: "{{ 'GitHub API: authenticated (token available)' if github_token != '' else 'GitHub API: unauthenticated (rate-limited to 60 req/hr)' }}"
+
+    - name: Read scan configuration
+      ansible.builtin.slurp:
+        src: "{{ config_file }}"
+      register: scan_config_raw
+
+    - name: Parse scan configuration
+      ansible.builtin.set_fact:
+        scan_config: "{{ scan_config_raw.content | b64decode | from_yaml }}"
+
+    - name: Set platform architecture mappings
+      ansible.builtin.set_fact:
+        arch_suffix: "{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}"
+        trivy_rpm_arch: "{{ '64bit' if ansible_architecture == 'x86_64' else ansible_architecture }}"
+
+    - name: Build GitHub API headers
+      ansible.builtin.set_fact:
+        github_api_headers: >-
+          {{ {'Accept': 'application/vnd.github.v3+json',
+              'Authorization': 'Bearer ' + github_token}
+             if github_token != ''
+             else {'Accept': 'application/vnd.github.v3+json'} }}
+
+    - name: Create scan tool cache directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ run_user }}"
+        group: "{{ run_user }}"
+        mode: "0755"
+      loop:
+        - "{{ scan_config.scan_tools.trivy.cache_dir }}"
+        - "{{ scan_config.scan_tools.grype.db_cache_dir }}"
+      when: item != ''
+      become: true
+
+    - name: Resolve pinned versions (config defaults, overridable via -e)
+      ansible.builtin.set_fact:
+        trivy_pinned: "{{ trivy_version if trivy_version != '' else scan_config.scan_tools.trivy.version }}"
+        grype_pinned: "{{ grype_version if grype_version != '' else scan_config.scan_tools.grype.version }}"
+        syft_pinned: "{{ syft_version if syft_version != '' else scan_config.scan_tools.syft.version }}"
+        cosign_pinned: "{{ cosign_version if cosign_version != '' else scan_config.scan_tools.cosign.version }}"
+
+    # ══════════════════════════════════════════════════════════════════════
+    # TRIVY
+    # ══════════════════════════════════════════════════════════════════════
+
+    - name: Check if Trivy is installed
+      ansible.builtin.command:
+        cmd: "which trivy"
+      register: trivy_which
+      changed_when: false
+      failed_when: false
+
+    - name: Get installed Trivy version
+      ansible.builtin.command:
+        cmd: "trivy version"
+      register: trivy_version_raw
+      changed_when: false
+      failed_when: false
+      when: trivy_which.rc == 0
+
+    - name: Parse installed Trivy version
+      ansible.builtin.set_fact:
+        trivy_installed: "{{ trivy_version_raw.stdout | regex_search('Version:\\s*([0-9.]+)', '\\1') | first | default('') }}"
+      when: trivy_which.rc == 0
+
+    - name: Set Trivy not installed
+      ansible.builtin.set_fact:
+        trivy_installed: ""
+      when: trivy_which.rc != 0
+
+    - name: Query latest Trivy release from GitHub
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ scan_config.scan_tools.trivy.github_repo }}/releases/latest"
+        return_content: true
+        headers: "{{ github_api_headers }}"
+      register: trivy_latest_raw
+      failed_when: false
+      when: not (offline_mode | bool)
+
+    - name: Parse latest Trivy version
+      ansible.builtin.set_fact:
+        trivy_latest: "{{ trivy_latest_raw.json.tag_name | regex_replace('^v', '') }}"
+      when: not (offline_mode | bool) and trivy_latest_raw.status | default(0) == 200
+
+    - name: Set Trivy latest unknown
+      ansible.builtin.set_fact:
+        trivy_latest: "unknown"
+      when: (offline_mode | bool) or trivy_latest_raw.status | default(0) != 200
+
+    - name: Determine Trivy target version
+      ansible.builtin.set_fact:
+        trivy_target: >-
+          {{ trivy_latest if (upgrade | bool) and trivy_latest != 'unknown'
+             and trivy_latest is version(trivy_pinned, '>')
+             else trivy_pinned }}
+
+    - name: Determine if Trivy install is needed
+      ansible.builtin.set_fact:
+        trivy_needs_install: >-
+          {{ trivy_installed == ''
+             or (trivy_installed is version(trivy_pinned, '<'))
+             or ((upgrade | bool) and trivy_latest != 'unknown'
+                 and trivy_installed is version(trivy_latest, '<')) }}
+
+    - name: Install Trivy
+      when: trivy_needs_install | bool and not (offline_mode | bool)
+      block:
+        - name: Download Trivy RPM
+          ansible.builtin.get_url:
+            url: "https://github.com/{{ scan_config.scan_tools.trivy.github_repo }}/releases/download/v{{ trivy_target }}/trivy_{{ trivy_target }}_Linux-{{ trivy_rpm_arch }}.rpm"
+            dest: "/tmp/trivy_{{ trivy_target }}.rpm"
+            mode: "0644"
+
+        - name: Install Trivy RPM
+          ansible.builtin.dnf:
+            name: "/tmp/trivy_{{ trivy_target }}.rpm"
+            state: present
+            disable_gpg_check: true
+          become: true
+
+        - name: Clean up Trivy RPM
+          ansible.builtin.file:
+            path: "/tmp/trivy_{{ trivy_target }}.rpm"
+            state: absent
+
+    - name: Fail if Trivy needed but offline
+      ansible.builtin.fail:
+        msg: "Trivy is not installed and offline_mode is set. Cannot download."
+      when: trivy_needs_install | bool and (offline_mode | bool) and trivy_installed == ''
+
+    - name: Verify Trivy installation
+      ansible.builtin.command:
+        cmd: "trivy version"
+      register: trivy_verify
+      changed_when: false
+      failed_when: false
+
+    - name: Re-parse installed Trivy version after install
+      ansible.builtin.set_fact:
+        trivy_installed: "{{ trivy_verify.stdout | regex_search('Version:\\s*([0-9.]+)', '\\1') | first | default('NOT INSTALLED') }}"
+
+    - name: Log Trivy upgrade availability
+      ansible.builtin.debug:
+        msg: "Trivy upgrade available: {{ trivy_installed }} → {{ trivy_latest }} (pinned: {{ trivy_pinned }})"
+      when: >-
+        trivy_latest != 'unknown'
+        and trivy_installed != 'NOT INSTALLED'
+        and trivy_latest is version(trivy_installed, '>')
+        and not (upgrade | bool)
+
+    - name: Record Trivy status
+      ansible.builtin.set_fact:
+        tool_status: >-
+          {{ tool_status + [{
+            'tool': 'Trivy',
+            'installed': trivy_installed,
+            'pinned': trivy_pinned,
+            'latest': trivy_latest,
+            'action': 'upgraded' if (trivy_needs_install | bool and trivy_installed != '') else ('installed' if (trivy_needs_install | bool) else 'ok')
+          }] }}
+
+    - name: Initialize Trivy vulnerability database
+      ansible.builtin.command:
+        cmd: >-
+          trivy image --download-db-only
+          {% if scan_config.scan_tools.trivy.cache_dir | default('') != '' %}--cache-dir {{ scan_config.scan_tools.trivy.cache_dir }}{% endif %}
+      changed_when: true
+      when: not (offline_mode | bool) and trivy_installed != 'NOT INSTALLED'
+
+    # ══════════════════════════════════════════════════════════════════════
+    # GRYPE
+    # ══════════════════════════════════════════════════════════════════════
+
+    - name: Check if Grype is installed
+      ansible.builtin.command:
+        cmd: "which grype"
+      register: grype_which
+      changed_when: false
+      failed_when: false
+
+    - name: Get installed Grype version
+      ansible.builtin.command:
+        cmd: "grype version"
+      register: grype_version_raw
+      changed_when: false
+      failed_when: false
+      when: grype_which.rc == 0
+
+    - name: Parse installed Grype version
+      ansible.builtin.set_fact:
+        grype_installed: "{{ grype_version_raw.stdout | regex_search('Version:\\s*([0-9.]+)', '\\1') | first | default('') }}"
+      when: grype_which.rc == 0
+
+    - name: Set Grype not installed
+      ansible.builtin.set_fact:
+        grype_installed: ""
+      when: grype_which.rc != 0
+
+    - name: Query latest Grype release from GitHub
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ scan_config.scan_tools.grype.github_repo }}/releases/latest"
+        return_content: true
+        headers: "{{ github_api_headers }}"
+      register: grype_latest_raw
+      failed_when: false
+      when: not (offline_mode | bool)
+
+    - name: Parse latest Grype version
+      ansible.builtin.set_fact:
+        grype_latest: "{{ grype_latest_raw.json.tag_name | regex_replace('^v', '') }}"
+      when: not (offline_mode | bool) and grype_latest_raw.status | default(0) == 200
+
+    - name: Set Grype latest unknown
+      ansible.builtin.set_fact:
+        grype_latest: "unknown"
+      when: (offline_mode | bool) or grype_latest_raw.status | default(0) != 200
+
+    - name: Determine Grype target version
+      ansible.builtin.set_fact:
+        grype_target: >-
+          {{ grype_latest if (upgrade | bool) and grype_latest != 'unknown'
+             and grype_latest is version(grype_pinned, '>')
+             else grype_pinned }}
+
+    - name: Determine if Grype install is needed
+      ansible.builtin.set_fact:
+        grype_needs_install: >-
+          {{ grype_installed == ''
+             or (grype_installed is version(grype_pinned, '<'))
+             or ((upgrade | bool) and grype_latest != 'unknown'
+                 and grype_installed is version(grype_latest, '<')) }}
+
+    - name: Install Grype
+      when: grype_needs_install | bool and not (offline_mode | bool)
+      block:
+        - name: Download Grype RPM
+          ansible.builtin.get_url:
+            url: "https://github.com/{{ scan_config.scan_tools.grype.github_repo }}/releases/download/v{{ grype_target }}/grype_{{ grype_target }}_linux_{{ arch_suffix }}.rpm"
+            dest: "/tmp/grype_{{ grype_target }}.rpm"
+            mode: "0644"
+
+        - name: Install Grype RPM
+          ansible.builtin.dnf:
+            name: "/tmp/grype_{{ grype_target }}.rpm"
+            state: present
+            disable_gpg_check: true
+          become: true
+
+        - name: Clean up Grype RPM
+          ansible.builtin.file:
+            path: "/tmp/grype_{{ grype_target }}.rpm"
+            state: absent
+
+    - name: Fail if Grype needed but offline
+      ansible.builtin.fail:
+        msg: "Grype is not installed and offline_mode is set. Cannot download."
+      when: grype_needs_install | bool and (offline_mode | bool) and grype_installed == ''
+
+    - name: Verify Grype installation
+      ansible.builtin.command:
+        cmd: "grype version"
+      register: grype_verify
+      changed_when: false
+      failed_when: false
+
+    - name: Re-parse installed Grype version after install
+      ansible.builtin.set_fact:
+        grype_installed: "{{ grype_verify.stdout | regex_search('Version:\\s*([0-9.]+)', '\\1') | first | default('NOT INSTALLED') }}"
+
+    - name: Log Grype upgrade availability
+      ansible.builtin.debug:
+        msg: "Grype upgrade available: {{ grype_installed }} → {{ grype_latest }} (pinned: {{ grype_pinned }})"
+      when: >-
+        grype_latest != 'unknown'
+        and grype_installed != 'NOT INSTALLED'
+        and grype_latest is version(grype_installed, '>')
+        and not (upgrade | bool)
+
+    - name: Record Grype status
+      ansible.builtin.set_fact:
+        tool_status: >-
+          {{ tool_status + [{
+            'tool': 'Grype',
+            'installed': grype_installed,
+            'pinned': grype_pinned,
+            'latest': grype_latest,
+            'action': 'upgraded' if (grype_needs_install | bool and grype_installed != '') else ('installed' if (grype_needs_install | bool) else 'ok')
+          }] }}
+
+    - name: Initialize Grype vulnerability database
+      ansible.builtin.command:
+        cmd: "grype db update"
+      environment: >-
+        {{ {'GRYPE_DB_CACHE_DIR': scan_config.scan_tools.grype.db_cache_dir}
+           if scan_config.scan_tools.grype.db_cache_dir | default('') != ''
+           else {} }}
+      changed_when: true
+      when: not (offline_mode | bool) and grype_installed != 'NOT INSTALLED'
+
+    # ══════════════════════════════════════════════════════════════════════
+    # SYFT
+    # ══════════════════════════════════════════════════════════════════════
+
+    - name: Check if Syft is installed
+      ansible.builtin.command:
+        cmd: "which syft"
+      register: syft_which
+      changed_when: false
+      failed_when: false
+
+    - name: Get installed Syft version
+      ansible.builtin.command:
+        cmd: "syft version"
+      register: syft_version_raw
+      changed_when: false
+      failed_when: false
+      when: syft_which.rc == 0
+
+    - name: Parse installed Syft version
+      ansible.builtin.set_fact:
+        syft_installed: "{{ syft_version_raw.stdout | regex_search('Version:\\s*([0-9.]+)', '\\1') | first | default('') }}"
+      when: syft_which.rc == 0
+
+    - name: Set Syft not installed
+      ansible.builtin.set_fact:
+        syft_installed: ""
+      when: syft_which.rc != 0
+
+    - name: Query latest Syft release from GitHub
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ scan_config.scan_tools.syft.github_repo }}/releases/latest"
+        return_content: true
+        headers: "{{ github_api_headers }}"
+      register: syft_latest_raw
+      failed_when: false
+      when: not (offline_mode | bool)
+
+    - name: Parse latest Syft version
+      ansible.builtin.set_fact:
+        syft_latest: "{{ syft_latest_raw.json.tag_name | regex_replace('^v', '') }}"
+      when: not (offline_mode | bool) and syft_latest_raw.status | default(0) == 200
+
+    - name: Set Syft latest unknown
+      ansible.builtin.set_fact:
+        syft_latest: "unknown"
+      when: (offline_mode | bool) or syft_latest_raw.status | default(0) != 200
+
+    - name: Determine Syft target version
+      ansible.builtin.set_fact:
+        syft_target: >-
+          {{ syft_latest if (upgrade | bool) and syft_latest != 'unknown'
+             and syft_latest is version(syft_pinned, '>')
+             else syft_pinned }}
+
+    - name: Determine if Syft install is needed
+      ansible.builtin.set_fact:
+        syft_needs_install: >-
+          {{ syft_installed == ''
+             or (syft_installed is version(syft_pinned, '<'))
+             or ((upgrade | bool) and syft_latest != 'unknown'
+                 and syft_installed is version(syft_latest, '<')) }}
+
+    - name: Install Syft
+      when: syft_needs_install | bool and not (offline_mode | bool)
+      block:
+        - name: Download Syft RPM
+          ansible.builtin.get_url:
+            url: "https://github.com/{{ scan_config.scan_tools.syft.github_repo }}/releases/download/v{{ syft_target }}/syft_{{ syft_target }}_linux_{{ arch_suffix }}.rpm"
+            dest: "/tmp/syft_{{ syft_target }}.rpm"
+            mode: "0644"
+
+        - name: Install Syft RPM
+          ansible.builtin.dnf:
+            name: "/tmp/syft_{{ syft_target }}.rpm"
+            state: present
+            disable_gpg_check: true
+          become: true
+
+        - name: Clean up Syft RPM
+          ansible.builtin.file:
+            path: "/tmp/syft_{{ syft_target }}.rpm"
+            state: absent
+
+    - name: Fail if Syft needed but offline
+      ansible.builtin.fail:
+        msg: "Syft is not installed and offline_mode is set. Cannot download."
+      when: syft_needs_install | bool and (offline_mode | bool) and syft_installed == ''
+
+    - name: Verify Syft installation
+      ansible.builtin.command:
+        cmd: "syft version"
+      register: syft_verify
+      changed_when: false
+      failed_when: false
+
+    - name: Re-parse installed Syft version after install
+      ansible.builtin.set_fact:
+        syft_installed: "{{ syft_verify.stdout | regex_search('Version:\\s*([0-9.]+)', '\\1') | first | default('NOT INSTALLED') }}"
+
+    - name: Log Syft upgrade availability
+      ansible.builtin.debug:
+        msg: "Syft upgrade available: {{ syft_installed }} → {{ syft_latest }} (pinned: {{ syft_pinned }})"
+      when: >-
+        syft_latest != 'unknown'
+        and syft_installed != 'NOT INSTALLED'
+        and syft_latest is version(syft_installed, '>')
+        and not (upgrade | bool)
+
+    - name: Record Syft status
+      ansible.builtin.set_fact:
+        tool_status: >-
+          {{ tool_status + [{
+            'tool': 'Syft',
+            'installed': syft_installed,
+            'pinned': syft_pinned,
+            'latest': syft_latest,
+            'action': 'upgraded' if (syft_needs_install | bool and syft_installed != '') else ('installed' if (syft_needs_install | bool) else 'ok')
+          }] }}
+
+    # ══════════════════════════════════════════════════════════════════════
+    # COSIGN
+    # ══════════════════════════════════════════════════════════════════════
+
+    - name: Check if Cosign is installed
+      ansible.builtin.command:
+        cmd: "which cosign"
+      register: cosign_which
+      changed_when: false
+      failed_when: false
+
+    - name: Get installed Cosign version
+      ansible.builtin.command:
+        cmd: "cosign version"
+      register: cosign_version_raw
+      changed_when: false
+      failed_when: false
+      when: cosign_which.rc == 0
+
+    - name: Parse installed Cosign version
+      ansible.builtin.set_fact:
+        cosign_installed: >-
+          {{ cosign_version_raw.stdout
+             | regex_search('GitVersion:\s*v?([0-9.]+)', '\1')
+             | first | default('') }}
+      when: cosign_which.rc == 0
+
+    - name: Set Cosign not installed
+      ansible.builtin.set_fact:
+        cosign_installed: ""
+      when: cosign_which.rc != 0
+
+    - name: Query latest Cosign release from GitHub
+      ansible.builtin.uri:
+        url: >-
+          https://api.github.com/repos/{{
+            scan_config.scan_tools.cosign.github_repo
+          }}/releases/latest
+        return_content: true
+        headers: "{{ github_api_headers }}"
+      register: cosign_latest_raw
+      failed_when: false
+      when: not (offline_mode | bool)
+
+    - name: Parse latest Cosign version
+      ansible.builtin.set_fact:
+        cosign_latest: >-
+          {{ cosign_latest_raw.json.tag_name
+             | regex_replace('^v', '') }}
+      when: >-
+        not (offline_mode | bool)
+        and cosign_latest_raw.status | default(0) == 200
+
+    - name: Set Cosign latest unknown
+      ansible.builtin.set_fact:
+        cosign_latest: "unknown"
+      when: >-
+        (offline_mode | bool)
+        or cosign_latest_raw.status | default(0) != 200
+
+    - name: Determine Cosign target version
+      ansible.builtin.set_fact:
+        cosign_target: >-
+          {{ cosign_latest if (upgrade | bool) and cosign_latest != 'unknown'
+             and cosign_latest is version(cosign_pinned, '>')
+             else cosign_pinned }}
+
+    - name: Determine if Cosign install is needed
+      ansible.builtin.set_fact:
+        cosign_needs_install: >-
+          {{ cosign_installed == ''
+             or (cosign_installed is version(cosign_pinned, '<'))
+             or ((upgrade | bool) and cosign_latest != 'unknown'
+                 and cosign_installed is version(cosign_latest, '<')) }}
+
+    - name: Install Cosign
+      when: cosign_needs_install | bool and not (offline_mode | bool)
+      block:
+        - name: Download Cosign binary
+          ansible.builtin.get_url:
+            url: >-
+              https://github.com/{{
+                scan_config.scan_tools.cosign.github_repo
+              }}/releases/download/v{{ cosign_target
+              }}/cosign-linux-{{ arch_suffix }}
+            dest: "/tmp/cosign-{{ cosign_target }}"
+            mode: "0755"
+
+        - name: Install Cosign binary
+          ansible.builtin.copy:
+            src: "/tmp/cosign-{{ cosign_target }}"
+            dest: "{{ install_dir }}/cosign"
+            mode: "0755"
+            remote_src: true
+          become: true
+
+        - name: Clean up Cosign download
+          ansible.builtin.file:
+            path: "/tmp/cosign-{{ cosign_target }}"
+            state: absent
+
+    - name: Fail if Cosign needed but offline
+      ansible.builtin.fail:
+        msg: >-
+          Cosign is not installed and offline_mode is set. Cannot download.
+      when: >-
+        cosign_needs_install | bool
+        and (offline_mode | bool)
+        and cosign_installed == ''
+
+    - name: Verify Cosign installation
+      ansible.builtin.command:
+        cmd: "cosign version"
+      register: cosign_verify
+      changed_when: false
+      failed_when: false
+
+    - name: Re-parse installed Cosign version after install
+      ansible.builtin.set_fact:
+        cosign_installed: >-
+          {{ cosign_verify.stdout
+             | regex_search('GitVersion:\s*v?([0-9.]+)', '\1')
+             | first | default('NOT INSTALLED') }}
+
+    - name: Log Cosign upgrade availability
+      ansible.builtin.debug:
+        msg: >-
+          Cosign upgrade available:
+          {{ cosign_installed }} → {{ cosign_latest }}
+          (pinned: {{ cosign_pinned }})
+      when: >-
+        cosign_latest != 'unknown'
+        and cosign_installed != 'NOT INSTALLED'
+        and cosign_latest is version(cosign_installed, '>')
+        and not (upgrade | bool)
+
+    - name: Record Cosign status
+      ansible.builtin.set_fact:
+        tool_status: >-
+          {{ tool_status + [{
+            'tool': 'Cosign',
+            'installed': cosign_installed,
+            'pinned': cosign_pinned,
+            'latest': cosign_latest,
+            'action': 'upgraded' if (cosign_needs_install | bool and cosign_installed != '') else ('installed' if (cosign_needs_install | bool) else 'ok')
+          }] }}
+
+    # ══════════════════════════════════════════════════════════════════════
+    # CLAMAV
+    # ══════════════════════════════════════════════════════════════════════
+
+    - name: Check if ClamAV is installed
+      ansible.builtin.command:
+        cmd: "which clamscan"
+      register: clamav_which
+      changed_when: false
+      failed_when: false
+
+    - name: Get installed ClamAV version
+      ansible.builtin.command:
+        cmd: "clamscan --version"
+      register: clamav_version_raw
+      changed_when: false
+      failed_when: false
+      when: clamav_which.rc == 0
+
+    - name: Parse installed ClamAV version
+      ansible.builtin.set_fact:
+        clamav_installed: "{{ clamav_version_raw.stdout | regex_search('ClamAV\\s+([0-9.]+)', '\\1') | first | default('') }}"
+      when: clamav_which.rc == 0
+
+    - name: Set ClamAV not installed
+      ansible.builtin.set_fact:
+        clamav_installed: ""
+      when: clamav_which.rc != 0
+
+    - name: Install ClamAV packages
+      ansible.builtin.dnf:
+        name:
+          - clamav
+          - clamav-update
+          - clamd
+        state: present
+      become: true
+      register: clamav_install
+      failed_when: false
+      when: clamav_installed == '' and not (offline_mode | bool)
+
+    - name: Fail if ClamAV packages not available
+      ansible.builtin.fail:
+        msg: >-
+          ClamAV packages not found. ClamAV requires EPEL.
+          Register this host with Satellite to enable the EPEL 9 content view,
+          or manually enable the EPEL repository.
+      when: >-
+        clamav_installed == ''
+        and not (offline_mode | bool)
+        and clamav_install is failed
+
+    - name: Fail if ClamAV needed but offline
+      ansible.builtin.fail:
+        msg: "ClamAV is not installed and offline_mode is set. Cannot install."
+      when: clamav_installed == '' and (offline_mode | bool)
+
+    - name: Verify ClamAV installation
+      ansible.builtin.command:
+        cmd: "clamscan --version"
+      register: clamav_verify
+      changed_when: false
+      failed_when: false
+
+    - name: Re-parse ClamAV version after install
+      ansible.builtin.set_fact:
+        clamav_installed: "{{ clamav_verify.stdout | regex_search('ClamAV\\s+([0-9.]+)', '\\1') | first | default('NOT INSTALLED') }}"
+
+    - name: Record ClamAV status
+      ansible.builtin.set_fact:
+        tool_status: >-
+          {{ tool_status + [{
+            'tool': 'ClamAV',
+            'installed': clamav_installed,
+            'pinned': 'system',
+            'latest': 'system',
+            'action': 'installed' if (clamav_which.rc != 0) else 'ok'
+          }] }}
+
+    - name: Update ClamAV signature database
+      ansible.builtin.command:
+        cmd: "freshclam"
+      become: true
+      changed_when: true
+      when: not (offline_mode | bool) and clamav_installed != 'NOT INSTALLED'
+      failed_when: false
+
+    # ══════════════════════════════════════════════════════════════════════
+    # ANSIBLE-LINT
+    # ══════════════════════════════════════════════════════════════════════
+
+    - name: Check if ansible-lint is installed
+      ansible.builtin.command:
+        cmd: "which ansible-lint"
+      register: lint_which
+      changed_when: false
+      failed_when: false
+
+    - name: Get installed ansible-lint version
+      ansible.builtin.command:
+        cmd: "ansible-lint --version"
+      register: lint_version_raw
+      changed_when: false
+      failed_when: false
+      when: lint_which.rc == 0
+
+    - name: Parse installed ansible-lint version
+      ansible.builtin.set_fact:
+        lint_installed: "{{ lint_version_raw.stdout | regex_search('([0-9]+\\.[0-9.]+)', '\\1') | first | default('') }}"
+      when: lint_which.rc == 0
+
+    - name: Set ansible-lint not installed
+      ansible.builtin.set_fact:
+        lint_installed: ""
+      when: lint_which.rc != 0
+
+    - name: Install ansible-lint
+      ansible.builtin.pip:
+        name: ansible-lint
+        state: "{{ 'latest' if (upgrade | bool) else 'present' }}"
+      become: true
+      when: (lint_installed == '' or (upgrade | bool)) and not (offline_mode | bool)
+
+    - name: Fail if ansible-lint needed but offline
+      ansible.builtin.fail:
+        msg: "ansible-lint is not installed and offline_mode is set. Cannot install."
+      when: lint_installed == '' and (offline_mode | bool)
+
+    - name: Verify ansible-lint installation
+      ansible.builtin.command:
+        cmd: "ansible-lint --version"
+      register: lint_verify
+      changed_when: false
+      failed_when: false
+
+    - name: Re-parse ansible-lint version after install
+      ansible.builtin.set_fact:
+        lint_installed: "{{ lint_verify.stdout | regex_search('([0-9]+\\.[0-9.]+)', '\\1') | first | default('NOT INSTALLED') }}"
+
+    - name: Record ansible-lint status
+      ansible.builtin.set_fact:
+        tool_status: >-
+          {{ tool_status + [{
+            'tool': 'ansible-lint',
+            'installed': lint_installed,
+            'pinned': 'pip',
+            'latest': 'pip',
+            'action': 'installed' if (lint_which.rc != 0) else ('upgraded' if (upgrade | bool) else 'ok')
+          }] }}
+
+    # ══════════════════════════════════════════════════════════════════════
+    # SUMMARY
+    # ══════════════════════════════════════════════════════════════════════
+
+    - name: Display version matrix
+      ansible.builtin.debug:
+        msg: |
+          ══════════════════════════════════════════════════════════════════════
+            Security Scanning Tools — Version Matrix
+            Mode: {{ 'UPGRADE' if (upgrade | bool) else 'PINNED' }}
+            Offline: {{ offline_mode | bool }}
+          ══════════════════════════════════════════════════════════════════════
+
+          {% for t in tool_status %}
+            {{ "%-14s" | format(t.tool) }}  installed: {{ "%-16s" | format(t.installed) }}  pinned: {{ "%-10s" | format(t.pinned) }}  latest: {{ "%-10s" | format(t.latest) }}  [{{ t.action }}]
+          {% endfor %}
+
+          ══════════════════════════════════════════════════════════════════════
+          {% set upgrades = tool_status | selectattr('latest', 'ne', 'unknown') | selectattr('latest', 'ne', 'system') | selectattr('latest', 'ne', 'pip') | list %}
+          {% set upgrades_available = [] %}
+          {% for t in upgrades %}
+          {%   if t.installed != 'NOT INSTALLED' and t.latest is version(t.installed, '>') %}
+          {%     set _ = upgrades_available.append(t) %}
+          {%   endif %}
+          {% endfor %}
+          {% if upgrades_available | length > 0 %}
+          Upgrades available (re-run with --upgrade to apply):
+          {% for t in upgrades_available %}
+            {{ t.tool }}: {{ t.installed }} → {{ t.latest }}
+          {% endfor %}
+          {% else %}
+          All tools are up to date.
+          {% endif %}
+          ══════════════════════════════════════════════════════════════════════

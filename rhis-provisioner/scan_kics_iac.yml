@@ -1,0 +1,318 @@
+---
+# KICS Infrastructure-as-Code scan for built container images.
+#
+# Exports the container filesystem and runs KICS against the /rhis
+# directory tree to find security misconfigurations in Ansible playbooks,
+# Dockerfiles, and shell scripts baked into the image.
+#
+# Designed to run standalone or called from the build pipeline.
+# Reports land in the build's scan-reports directory when reports_dir
+# is passed, or in a standalone directory otherwise.
+#
+# Usage:
+#   ansible-playbook scan_kics_iac.yml -e image_name=rhis-provisioner-9-2.5:1.0.133
+#   ansible-playbook scan_kics_iac.yml -e image_name=rhis-provisioner-9-2.5:1.0.133 \
+#     -e reports_dir=./scan-reports/build-ubi9-20260930-012345
+#
+# Accepted risks:
+#   KICS query IDs listed in kics_accepted_risks (below or via extra-vars)
+#   produce warnings instead of failures.
+
+- name: KICS IaC security scan for container image
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    image_name: ""
+    kics_bin: "{{ lookup('env', 'HOME') }}/.local/bin/kics"
+    kics_queries: "{{ lookup('env', 'HOME') }}/.local/share/kics/assets/queries"
+    kics_libraries: "{{ lookup('env', 'HOME') }}/.local/share/kics/assets/libraries"
+    run_user: "{{ lookup('env', 'USER') }}"
+    scan_types: "Ansible,Dockerfile"
+    fail_on_severities:
+      - "CRITICAL"
+      - "HIGH"
+    export_path: "/tmp/rhis-kics-export"
+    container_name: "rhis-kics-export"
+    kics_accepted_risks_file: "{{ playbook_dir }}/kics_accepted_risks.yml"
+    kics_accepted_risks: []
+
+  tasks:
+
+    # ── Preflight ────────────────────────────────────────────────────────
+
+    - name: Set scan timestamp
+      ansible.builtin.set_fact:
+        scan_timestamp: "{{ now(utc=true).strftime('%Y%m%d-%H%M%S') }}"
+
+    - name: Derive OS version from image name
+      ansible.builtin.set_fact:
+        os_ver: "{{ image_name | regex_search('-(\\d+)-', '\\1') | first | default('unknown') }}"
+
+    - name: Fail if running user cannot be determined
+      ansible.builtin.fail:
+        msg: "Cannot determine running user. The USER environment variable is not set."
+      when: run_user == ""
+
+    - name: Fail if image_name not specified
+      ansible.builtin.fail:
+        msg: "You must specify image_name. Usage: -e image_name=rhis-provisioner-9-2.5:1.0.133"
+      when: image_name == ""
+
+    - name: Set reports directory (standalone fallback)
+      ansible.builtin.set_fact:
+        reports_dir: "{{ playbook_dir }}/scan-reports/build-ubi{{ os_ver }}-{{ scan_timestamp }}"
+      when: reports_dir is not defined or reports_dir == ''
+
+    - name: Create reports directory
+      ansible.builtin.file:
+        path: "{{ reports_dir }}"
+        state: directory
+        owner: "{{ run_user }}"
+        group: "{{ run_user }}"
+        mode: "0755"
+
+    - name: Verify KICS binary exists
+      ansible.builtin.stat:
+        path: "{{ kics_bin }}"
+      register: kics_stat
+
+    - name: Fail if KICS is not installed
+      ansible.builtin.fail:
+        msg: >-
+          KICS binary not found at {{ kics_bin }}.
+          Download from https://github.com/Checkmarx/kics/releases
+      when: not kics_stat.stat.exists
+
+    - name: Verify KICS queries directory exists
+      ansible.builtin.stat:
+        path: "{{ kics_queries }}"
+      register: kics_queries_stat
+
+    - name: Fail if KICS queries not installed
+      ansible.builtin.fail:
+        msg: >-
+          KICS queries not found at {{ kics_queries }}.
+          Download extracted-info.zip from the KICS release.
+      when: not kics_queries_stat.stat.exists
+
+    - name: Verify image exists locally
+      ansible.builtin.command:
+        cmd: "podman image exists {{ image_name }}"
+      changed_when: false
+
+    # ── Load accepted risks ──────────────────────────────────────────────
+
+    - name: Check for KICS accepted risks file
+      ansible.builtin.stat:
+        path: "{{ kics_accepted_risks_file }}"
+      register: kics_risks_stat
+
+    - name: Load KICS accepted risks
+      when: kics_risks_stat.stat.exists and kics_accepted_risks | length == 0
+      block:
+        - name: Read KICS accepted risks file
+          ansible.builtin.slurp:
+            src: "{{ kics_accepted_risks_file }}"
+          register: kics_risks_raw
+
+        - name: Parse KICS accepted risks
+          ansible.builtin.set_fact:
+            kics_accepted_risks: "{{ (kics_risks_raw.content | b64decode | from_yaml).accepted_queries | map(attribute='query_id') | list }}"
+
+    # ── Export container filesystem ───────────────────────────────────────
+
+    - name: Remove stale export container
+      ansible.builtin.command:
+        cmd: "podman rm -f {{ container_name }}"
+      changed_when: false
+      failed_when: false
+
+    - name: Create temporary container for export
+      ansible.builtin.command:
+        cmd: "podman create --name {{ container_name }} {{ image_name }}"
+      changed_when: true
+
+    - name: Clean export directory
+      ansible.builtin.file:
+        path: "{{ export_path }}"
+        state: absent
+
+    - name: Create export directory
+      ansible.builtin.file:
+        path: "{{ export_path }}"
+        state: directory
+        mode: "0755"
+
+    - name: Export container filesystem
+      ansible.builtin.shell:
+        cmd: "podman export {{ container_name }} | tar xf - -C {{ export_path }}"
+      changed_when: true
+
+    - name: Remove export container
+      ansible.builtin.command:
+        cmd: "podman rm -f {{ container_name }}"
+      changed_when: true
+
+    - name: Verify /rhis exists in export
+      ansible.builtin.stat:
+        path: "{{ export_path }}/rhis"
+      register: rhis_dir_stat
+
+    - name: Fail if /rhis not found in exported image
+      ansible.builtin.fail:
+        msg: "Exported image does not contain /rhis directory. Is this a provisioner image?"
+      when: not rhis_dir_stat.stat.exists
+
+    # ── Run KICS scan ────────────────────────────────────────────────────
+
+    - name: Run KICS scan
+      ansible.builtin.command:
+        cmd: >-
+          {{ kics_bin }} scan
+          -p {{ export_path }}/rhis
+          -q {{ kics_queries }}
+          -b {{ kics_libraries }}
+          -o {{ reports_dir }}
+          --report-formats json,html
+          --type {{ scan_types }}
+          --no-progress
+          {% if kics_accepted_risks | length > 0 %}
+          --exclude-queries {{ kics_accepted_risks | join(',') }}
+          {% endif %}
+          --ignore-on-exit results
+      register: kics_result
+      changed_when: false
+
+    # ── Parse results ────────────────────────────────────────────────────
+
+    - name: Parse KICS results
+      ansible.builtin.shell:
+        cmd: |
+          python3 << 'PYEOF'
+          import json, sys
+
+          with open('{{ reports_dir }}/results.json') as f:
+              data = json.load(f)
+
+          summary = {
+              'total': data.get('total_counter', 0),
+              'critical': data.get('severity_counters', {}).get('CRITICAL', 0),
+              'high': data.get('severity_counters', {}).get('HIGH', 0),
+              'medium': data.get('severity_counters', {}).get('MEDIUM', 0),
+              'low': data.get('severity_counters', {}).get('LOW', 0),
+              'info': data.get('severity_counters', {}).get('INFO', 0),
+              'queries_failed': [],
+          }
+
+          fail_on = {{ fail_on_severities | to_json }}
+
+          import re
+          for q in data.get('queries', []):
+              if q.get('severity', '') in fail_on:
+                  files = []
+                  for f in q.get('files', []):
+                      path = f['file_name']
+                      path = re.sub(r'.*/rhis/', '', path)
+                      files.append(path + ':' + str(f.get('line', '?')))
+                  summary['queries_failed'].append({
+                      'name': q['query_name'],
+                      'severity': q['severity'],
+                      'count': len(q.get('files', [])),
+                      'files': files[:10],
+                  })
+
+          print(json.dumps(summary))
+          PYEOF
+      register: kics_summary_raw
+      changed_when: false
+
+    - name: Set KICS summary
+      ansible.builtin.set_fact:
+        kics_summary: "{{ kics_summary_raw.stdout | trim | from_json }}"
+
+    # ── Report ───────────────────────────────────────────────────────────
+
+    - name: Display KICS scan summary
+      ansible.builtin.debug:
+        msg: |
+          ══════════════════════════════════════════════════════════════════════
+            KICS IaC Security Scan
+            Image:     {{ image_name }}
+            Timestamp: {{ scan_timestamp }}
+            Scan path: /rhis ({{ scan_types }})
+          ══════════════════════════════════════════════════════════════════════
+
+          CRITICAL: {{ kics_summary.critical }}
+          HIGH:     {{ kics_summary.high }}
+          MEDIUM:   {{ kics_summary.medium }}
+          LOW:      {{ kics_summary.low }}
+          INFO:     {{ kics_summary.info }}
+          TOTAL:    {{ kics_summary.total }}
+
+          Reports: {{ reports_dir }}/results.json
+                   {{ reports_dir }}/results.html
+          {% if kics_summary.queries_failed | length > 0 %}
+
+          Policy-failing findings ({{ fail_on_severities | join(', ') }}):
+          {% for q in kics_summary.queries_failed %}
+            {{ q.severity }}: {{ q.name }} ({{ q.count }} findings)
+          {% for f in q.files %}
+              - {{ f }}
+          {% endfor %}
+          {% endfor %}
+          {% endif %}
+          ══════════════════════════════════════════════════════════════════════
+
+    - name: Save KICS scan summary
+      ansible.builtin.copy:
+        dest: "{{ reports_dir }}/kics-summary.txt"
+        owner: "{{ run_user }}"
+        group: "{{ run_user }}"
+        mode: "0644"
+        content: |
+          KICS IaC Security Scan Summary
+          Image: {{ image_name }}
+          Timestamp: {{ scan_timestamp }}
+
+          CRITICAL: {{ kics_summary.critical }}
+          HIGH: {{ kics_summary.high }}
+          MEDIUM: {{ kics_summary.medium }}
+          LOW: {{ kics_summary.low }}
+          INFO: {{ kics_summary.info }}
+          TOTAL: {{ kics_summary.total }}
+          {% if kics_summary.queries_failed | length > 0 %}
+
+          Policy-failing findings:
+          {% for q in kics_summary.queries_failed %}
+          {{ q.severity }}  {{ q.name }}  ({{ q.count }} findings)
+          {% for f in q.files %}
+            {{ f }}
+          {% endfor %}
+          {% endfor %}
+          {% endif %}
+
+    # ── Cleanup ──────────────────────────────────────────────────────────
+
+    - name: Clean up exported filesystem
+      ansible.builtin.file:
+        path: "{{ export_path }}"
+        state: absent
+      become: true
+
+    # ── Policy enforcement ───────────────────────────────────────────────
+
+    - name: Enforce KICS scan policy
+      ansible.builtin.fail:
+        msg: |
+          ╔══════════════════════════════════════════════════════════════════╗
+          ║  KICS IaC SCAN FAILED — Policy Violations                     ║
+          ╚══════════════════════════════════════════════════════════════════╝
+          {% for q in kics_summary.queries_failed %}
+            {{ q.severity }}: {{ q.name }} ({{ q.count }} findings)
+          {% endfor %}
+
+          Review reports in: {{ reports_dir }}/
+          Add accepted query IDs to kics_accepted_risks to suppress known issues.
+      when: kics_summary.queries_failed | length > 0

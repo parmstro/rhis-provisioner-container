@@ -1,0 +1,650 @@
+---
+# Post-build security scanning for rhis-base container image.
+#
+# Runs against the built OCI image:
+#   5.  trivy image (full image scan: OS + app deps + secrets)
+#   6.  syft image (SBOM generation)
+#   7.  grype sbom: (second-opinion scan via SBOM)
+#   8.  push image to registry
+#   9.  cosign sign (keyless / Sigstore)
+#   10. cosign attest SBOM (spdxjson)
+#   11. cosign attest vulnerability scan (vuln)
+#
+# Phases 8-11 require registry_image to be set.
+#
+# Usage:
+#   ansible-playbook scan_base_post_build.yml -e image_name=rhis-base-9-2.5:1.0.22
+#   ansible-playbook scan_base_post_build.yml -e image_name=rhis-base-9-2.5:1.0.22 \
+#     -e registry_image=quay.io/rhis/rhis-base-9:1.0.22
+
+- name: Post-build security scan for rhis-base image
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    image_name: ""
+    registry_image: ""
+    config_file: "{{ playbook_dir }}/scan_collections_config.yml"
+    accepted_risks_file: "{{ playbook_dir }}/scan_accepted_risks.yml"
+    run_user: "{{ lookup('env', 'USER') }}"
+    scan_results: []
+
+  tasks:
+
+    # ── Preflight checks ──────────────────────────────────────────────────
+
+    - name: Set scan timestamp
+      ansible.builtin.set_fact:
+        scan_timestamp: "{{ now(utc=true).strftime('%Y%m%d-%H%M%S') }}"
+
+    - name: Derive OS version from image name
+      ansible.builtin.set_fact:
+        os_ver: "{{ image_name | regex_search('rhis-base-(\\d+)-', '\\1') | first | default('unknown') }}"
+
+    - name: Fail if running user cannot be determined
+      ansible.builtin.fail:
+        msg: "Cannot determine running user. The USER environment variable is not set."
+      when: run_user == ""
+
+    - name: Fail if image_name not specified
+      ansible.builtin.fail:
+        msg: "You must specify image_name. Usage: -e image_name=rhis-base-9-2.5:1.0.22"
+      when: image_name == ""
+
+    - name: Read scan configuration
+      ansible.builtin.slurp:
+        src: "{{ config_file }}"
+      register: scan_config_raw
+
+    - name: Parse scan configuration
+      ansible.builtin.set_fact:
+        scan_config: "{{ scan_config_raw.content | b64decode | from_yaml }}"
+
+    - name: Set reports base path
+      ansible.builtin.set_fact:
+        reports_base: "{{ playbook_dir }}/{{ scan_config.reporting.reports_dir | default('scan-reports') }}"
+
+    - name: Set reports directory (standalone fallback)
+      ansible.builtin.set_fact:
+        reports_dir: "{{ playbook_dir }}/{{ scan_config.reporting.reports_dir | default('scan-reports') }}/build-ubi{{ os_ver }}-{{ scan_timestamp }}"
+      when: reports_dir is not defined or reports_dir == ''
+
+    - name: Create reports directory
+      ansible.builtin.file:
+        path: "{{ reports_dir }}"
+        state: directory
+        owner: "{{ run_user }}"
+        group: "{{ run_user }}"
+        mode: "0755"
+
+    - name: Build required tools list
+      ansible.builtin.set_fact:
+        required_tools: >-
+          {{ [
+            scan_config.scan_tools.trivy.path,
+            scan_config.scan_tools.grype.path,
+            scan_config.scan_tools.syft.path
+          ] + ([scan_config.scan_tools.cosign.path] if registry_image != '' else []) }}
+
+    - name: Verify scan tools are available
+      ansible.builtin.command:
+        cmd: "which {{ item }}"
+      loop: "{{ required_tools }}"
+      loop_control:
+        label: "{{ item }}"
+      register: tool_checks
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if required scan tools are missing
+      ansible.builtin.fail:
+        msg: >-
+          Missing scan tools: {{ tool_checks.results
+            | selectattr('rc', 'ne', 0)
+            | map(attribute='item')
+            | list | join(', ') }}.
+          Run install_scan_tools.sh first.
+      when: tool_checks.results | selectattr('rc', 'ne', 0) | list | length > 0
+
+    - name: Verify image exists locally
+      ansible.builtin.command:
+        cmd: "podman image exists {{ image_name }}"
+      changed_when: false
+
+    # ── Phase 5: Trivy Image Scan ─────────────────────────────────────────
+
+    - name: Run Trivy image scan
+      ansible.builtin.command:
+        cmd: >-
+          {{ scan_config.scan_tools.trivy.path }} image
+          --severity {{ scan_config.scan_tools.trivy.severity }}
+          --format {{ scan_config.reporting.trivy_format }}
+          --output {{ reports_dir }}/trivy-image.json
+          {% if scan_config.scan_tools.trivy.offline_mode | default(false) %}--skip-db-update{% endif %}
+          {% if scan_config.scan_tools.trivy.cache_dir | default('') != '' %}--cache-dir {{ scan_config.scan_tools.trivy.cache_dir }}{% endif %}
+          {{ image_name }}
+      register: trivy_image_result
+      changed_when: false
+      failed_when: false
+
+    - name: Record Trivy image results
+      ansible.builtin.set_fact:
+        scan_results: >-
+          {{ scan_results + [{
+            'phase': 'trivy-image',
+            'rc': trivy_image_result.rc,
+            'report': reports_dir + '/trivy-image.json'
+          }] }}
+
+    # ── Phase 6: Syft SBOM Generation ─────────────────────────────────────
+
+    - name: Determine SBOM file extension
+      ansible.builtin.set_fact:
+        sbom_ext: "{{ 'spdx.json' if 'spdx' in scan_config.scan_tools.syft.output_format else 'cdx.json' }}"
+
+    - name: Generate SBOM with Syft
+      ansible.builtin.command:
+        cmd: >-
+          {{ scan_config.scan_tools.syft.path }}
+          {{ image_name }}
+          --output {{ scan_config.scan_tools.syft.output_format }}={{ reports_dir }}/sbom.{{ sbom_ext }}
+      register: syft_result
+      changed_when: true
+      failed_when: false
+
+    - name: Record Syft results
+      ansible.builtin.set_fact:
+        scan_results: >-
+          {{ scan_results + [{
+            'phase': 'syft-sbom',
+            'rc': syft_result.rc,
+            'sbom_path': reports_dir + '/sbom.' + sbom_ext,
+            'report': reports_dir + '/sbom.' + sbom_ext
+          }] }}
+
+    # ── Phase 7: Grype SBOM Scan ──────────────────────────────────────────
+
+    - name: Run Grype SBOM scan
+      ansible.builtin.command:
+        cmd: >-
+          {{ scan_config.scan_tools.grype.path }}
+          sbom:{{ reports_dir }}/sbom.{{ sbom_ext }}
+          --output {{ scan_config.reporting.grype_format }}
+          --file {{ reports_dir }}/grype-sbom.json
+          --fail-on {{ scan_config.scan_tools.grype.severity_cutoff }}
+      register: grype_sbom_result
+      changed_when: false
+      failed_when: false
+      when: syft_result.rc == 0
+      environment:
+        GRYPE_DB_AUTO_UPDATE: "{{ 'false' if scan_config.scan_tools.grype.offline_mode | default(false) else 'true' }}"
+        GRYPE_DB_CACHE_DIR: "{{ scan_config.scan_tools.grype.db_cache_dir | default('') }}"
+
+    - name: Record Grype SBOM results
+      ansible.builtin.set_fact:
+        scan_results: >-
+          {{ scan_results + [{
+            'phase': 'grype-sbom',
+            'rc': grype_sbom_result.rc | default(1),
+            'report': reports_dir + '/grype-sbom.json'
+          }] }}
+
+    # ── Report and Policy Enforcement ─────────────────────────────────────
+
+    - name: Build scan summary
+      ansible.builtin.set_fact:
+        trivy_img: "{{ scan_results | selectattr('phase', 'eq', 'trivy-image') | first }}"
+        syft_sbom: "{{ scan_results | selectattr('phase', 'eq', 'syft-sbom') | first }}"
+        grype_sbom: "{{ scan_results | selectattr('phase', 'eq', 'grype-sbom') | first }}"
+
+    - name: Display post-build scan summary
+      ansible.builtin.debug:
+        msg: |
+          ══════════════════════════════════════════════════════════════════════
+            Post-Build Security Scan Summary
+            Image:     {{ image_name }}
+            Timestamp: {{ scan_timestamp }}
+          ══════════════════════════════════════════════════════════════════════
+
+          Phase 5 - Trivy Image Scan:
+            Exit code: {{ trivy_img.rc }}
+            Report: {{ trivy_img.report }}
+
+          Phase 6 - Syft SBOM Generation:
+            Exit code: {{ syft_sbom.rc }}
+            SBOM: {{ syft_sbom.report }}
+
+          Phase 7 - Grype SBOM Scan:
+            Exit code: {{ grype_sbom.rc }}
+            Report: {{ grype_sbom.report }}
+
+          ══════════════════════════════════════════════════════════════════════
+
+    - name: Save scan summary
+      ansible.builtin.copy:
+        dest: "{{ reports_dir }}/scan-summary.txt"
+        owner: "{{ run_user }}"
+        group: "{{ run_user }}"
+        mode: "0644"
+        content: |
+          Post-Build Security Scan Summary
+          Image: {{ image_name }}
+          Timestamp: {{ scan_timestamp }}
+
+          Trivy Image: exit {{ trivy_img.rc }}
+          Syft SBOM: exit {{ syft_sbom.rc }}
+          Grype SBOM: exit {{ grype_sbom.rc }}
+
+    # ── Policy enforcement ────────────────────────────────────────────────
+
+    - name: Check for accepted risks file
+      ansible.builtin.stat:
+        path: "{{ accepted_risks_file }}"
+      register: risks_file_stat
+
+    - name: Load accepted risks
+      when: risks_file_stat.stat.exists
+      block:
+        - name: Read accepted risks file
+          ansible.builtin.slurp:
+            src: "{{ accepted_risks_file }}"
+          register: accepted_risks_raw
+
+        - name: Parse accepted risks
+          ansible.builtin.set_fact:
+            accepted_risks: "{{ (accepted_risks_raw.content | b64decode | from_yaml).accepted_cves | default({}) }}"
+
+    - name: Set empty accepted risks if no file
+      ansible.builtin.set_fact:
+        accepted_risks: {}
+      when: not risks_file_stat.stat.exists
+
+    - name: Write accepted CVE list for risk assessment
+      ansible.builtin.copy:
+        dest: "/tmp/rhis-accepted-cves.json"
+        mode: "0644"
+        content: "{{ accepted_risks.keys() | list | to_json }}"
+      when: grype_sbom.rc != 0
+
+    - name: Assess Grype findings against accepted risks
+      ansible.builtin.shell:
+        cmd: |
+          python3 << 'PYEOF'
+          import json, sys
+
+          with open('{{ grype_sbom.report }}') as f:
+              data = json.load(f)
+
+          with open('/tmp/rhis-accepted-cves.json') as f:
+              accepted_cves = set(json.load(f))
+
+          cutoff = '{{ scan_config.scan_tools.grype.severity_cutoff }}'
+          sev_order = {'negligible':0,'low':1,'medium':2,'high':3,'critical':4}
+          cutoff_val = sev_order.get(cutoff.lower(), 3)
+
+          unaccepted = []
+          accepted_used = []
+          seen = set()
+
+          for m in data.get('matches', []):
+              v = m.get('vulnerability', {})
+              cve = v.get('id', '')
+              sev = v.get('severity', 'Unknown')
+              if sev_order.get(sev.lower(), 0) < cutoff_val:
+                  continue
+              pkg = m.get('artifact', {}).get('name', '?')
+              key = cve + ':' + pkg
+              if key in seen:
+                  continue
+              seen.add(key)
+              if cve in accepted_cves:
+                  accepted_used.append({'cve': cve, 'severity': sev, 'package': pkg})
+              else:
+                  unaccepted.append({'cve': cve, 'severity': sev, 'package': pkg})
+
+          print(json.dumps({'unaccepted': unaccepted, 'accepted': accepted_used}))
+          PYEOF
+      register: risk_assessment_raw
+      changed_when: false
+      when: grype_sbom.rc != 0
+
+    - name: Clean up temporary accepted CVE list
+      ansible.builtin.file:
+        path: /tmp/rhis-accepted-cves.json
+        state: absent
+      when: grype_sbom.rc != 0
+
+    - name: Parse risk assessment
+      ansible.builtin.set_fact:
+        risk_assessment: "{{ (risk_assessment_raw.stdout | trim | from_json) if grype_sbom.rc != 0 else {'unaccepted': [], 'accepted': []} }}"
+
+    - name: Build policy violations list
+      ansible.builtin.set_fact:
+        policy_violations: >-
+          {%- set violations = [] -%}
+          {%- if syft_sbom.rc != 0 -%}
+            {%- set _ = violations.append('Syft SBOM generation failed') -%}
+          {%- endif -%}
+          {%- if grype_sbom.rc != 0 and risk_assessment.unaccepted | length > 0 -%}
+            {%- set cnt = risk_assessment.unaccepted | length | string -%}
+            {%- set sev = scan_config.scan_tools.grype.severity_cutoff -%}
+            {%- set _ = violations.append(
+                  'Grype found ' + cnt +
+                  ' UNACCEPTED vulnerabilities at or above '
+                  + sev + ' severity') -%}
+          {%- endif -%}
+          {{ violations }}
+
+    - name: Display accepted risk summary
+      ansible.builtin.debug:
+        msg: |
+          ══════════════════════════════════════════════════════════════════════
+            Accepted Risk Assessment
+          ══════════════════════════════════════════════════════════════════════
+          {% if risk_assessment.accepted | length > 0 %}
+          Accepted CVEs ({{ risk_assessment.accepted | length }} findings):
+          {% for f in risk_assessment.accepted %}
+            ⚠ {{ f.severity }}: {{ f.cve }} ({{ f.package }})
+          {% endfor %}
+          {% endif %}
+          {% if risk_assessment.unaccepted | length > 0 %}
+
+          UNACCEPTED CVEs ({{ risk_assessment.unaccepted | length }} findings):
+          {% for f in risk_assessment.unaccepted %}
+            ✗ {{ f.severity }}: {{ f.cve }} ({{ f.package }})
+          {% endfor %}
+          {% else %}
+
+          All {{ risk_assessment.accepted | length }} Grype findings are covered by accepted risks.
+          {% endif %}
+          ══════════════════════════════════════════════════════════════════════
+      when: grype_sbom.rc != 0
+
+    - name: Save risk acceptance report
+      ansible.builtin.copy:
+        dest: "{{ reports_dir }}/risk-acceptance.txt"
+        owner: "{{ run_user }}"
+        group: "{{ run_user }}"
+        mode: "0644"
+        content: |
+          Risk Acceptance Report
+          Image: {{ image_name }}
+          Timestamp: {{ scan_timestamp }}
+          Accepted risks file: {{ accepted_risks_file }}
+
+          Accepted CVEs: {{ risk_assessment.accepted | length }}
+          Unaccepted CVEs: {{ risk_assessment.unaccepted | length }}
+          {% for f in risk_assessment.accepted %}
+          ACCEPTED  {{ f.severity }}  {{ f.cve }}  {{ f.package }}  reason: {{ accepted_risks[f.cve].reason | default('see accepted risks file') }}
+          {% endfor %}
+          {% for f in risk_assessment.unaccepted %}
+          BLOCKED   {{ f.severity }}  {{ f.cve }}  {{ f.package }}
+          {% endfor %}
+      when: grype_sbom.rc != 0
+
+    - name: Enforce scan policy
+      ansible.builtin.fail:
+        msg: |
+          ╔══════════════════════════════════════════════════════════════════╗
+          ║  POST-BUILD SCAN FAILED — Policy Violations                    ║
+          ╚══════════════════════════════════════════════════════════════════╝
+          {% for v in policy_violations %}
+            ✗ {{ v }}
+          {% endfor %}
+
+          Review reports in: {{ reports_dir }}/
+          Image built but NOT pushed. Version file NOT updated.
+      when: policy_violations | length > 0
+
+    # ── Phase 8: Push image to registry ───────────────────────────────────
+
+    - name: Skip signing phases if registry_image not set
+      ansible.builtin.debug:
+        msg: >-
+          registry_image not set — skipping image push, signing, and
+          attestation. Re-run with -e registry_image=quay.io/org/image:tag
+          to enable.
+      when: registry_image == ""
+
+    - name: Push image to registry
+      ansible.builtin.command:
+        cmd: >-
+          podman push
+          --digestfile /tmp/rhis-push-digest.txt
+          {{ image_name }} {{ registry_image }}
+      register: push_result
+      changed_when: true
+      when: registry_image != ""
+
+    - name: Read pushed image digest
+      ansible.builtin.slurp:
+        src: /tmp/rhis-push-digest.txt
+      register: digest_raw
+      when: registry_image != ""
+
+    - name: Build digest reference for cosign
+      ansible.builtin.set_fact:
+        image_digest_ref: >-
+          {{ registry_image | regex_replace(':[^/]+$', '')
+          }}@{{ (digest_raw.content | b64decode) | trim }}
+      when: registry_image != ""
+
+    - name: Display pushed image digest
+      ansible.builtin.debug:
+        msg: "Pushed {{ registry_image }} — digest: {{ image_digest_ref }}"
+      when: registry_image != ""
+
+    - name: Clean up digest file
+      ansible.builtin.file:
+        path: /tmp/rhis-push-digest.txt
+        state: absent
+      when: registry_image != ""
+
+    # ── Phase 9: Sign image with cosign (keyless / Sigstore) ──────────────
+
+    - name: Start cosign sign (async — device flow)
+      ansible.builtin.shell:
+        cmd: >-
+          {{ scan_config.scan_tools.cosign.path }} sign --yes
+          {{ image_digest_ref }}
+          > /tmp/cosign-sign.log 2>&1
+      environment:
+        COSIGN_EXPERIMENTAL: "1"
+      async: 600
+      poll: 0
+      register: cosign_sign_job
+      when: registry_image != ""
+
+    - name: Wait for sign verification code
+      ansible.builtin.shell:
+        cmd: >-
+          grep -m1 'user_code\|verification code' /tmp/cosign-sign.log
+      register: sign_device_code
+      until: sign_device_code.rc == 0
+      retries: 30
+      delay: 2
+      changed_when: false
+      when: registry_image != ""
+
+    - name: Cosign sign — browser authentication required
+      ansible.builtin.pause:
+        prompt: |
+
+          ═══════════════════════════════════════════════════════════════
+            COSIGN SIGNING — Browser Authentication Required (1/3)
+          ═══════════════════════════════════════════════════════════════
+
+          {{ sign_device_code.stdout }}
+
+          Open the URL in your browser and enter the verification code.
+          Press ENTER here after completing authentication.
+          ═══════════════════════════════════════════════════════════════
+      when: registry_image != ""
+
+    - name: Wait for cosign sign to complete
+      ansible.builtin.async_status:
+        jid: "{{ cosign_sign_job.ansible_job_id }}"
+      register: cosign_sign_result
+      until: cosign_sign_result.finished | bool
+      retries: 60
+      delay: 5
+      when: registry_image != ""
+
+    - name: Clean up sign log
+      ansible.builtin.file:
+        path: /tmp/cosign-sign.log
+        state: absent
+      when: registry_image != ""
+
+    # ── Phase 10: Attach SBOM attestation ─────────────────────────────────
+
+    - name: Start SBOM attestation (async — device flow)
+      ansible.builtin.shell:
+        cmd: >-
+          {{ scan_config.scan_tools.cosign.path }} attest --yes
+          --predicate {{ syft_sbom.report }}
+          --type spdxjson
+          {{ image_digest_ref }}
+          > /tmp/cosign-attest-sbom.log 2>&1
+      environment:
+        COSIGN_EXPERIMENTAL: "1"
+      async: 600
+      poll: 0
+      register: sbom_attest_job
+      when: registry_image != "" and syft_sbom.rc == 0
+
+    - name: Wait for SBOM attestation verification code
+      ansible.builtin.shell:
+        cmd: >-
+          grep -m1 'user_code\|verification code' /tmp/cosign-attest-sbom.log
+      register: sbom_device_code
+      until: sbom_device_code.rc == 0
+      retries: 30
+      delay: 2
+      changed_when: false
+      when: registry_image != "" and syft_sbom.rc == 0
+
+    - name: SBOM attestation — browser authentication required
+      ansible.builtin.pause:
+        prompt: |
+
+          ═══════════════════════════════════════════════════════════════
+            COSIGN SBOM ATTESTATION — Browser Authentication (2/3)
+          ═══════════════════════════════════════════════════════════════
+
+          {{ sbom_device_code.stdout }}
+
+          Open the URL in your browser and enter the verification code.
+          Press ENTER here after completing authentication.
+          ═══════════════════════════════════════════════════════════════
+      when: registry_image != "" and syft_sbom.rc == 0
+
+    - name: Wait for SBOM attestation to complete
+      ansible.builtin.async_status:
+        jid: "{{ sbom_attest_job.ansible_job_id }}"
+      register: sbom_attest_result
+      until: sbom_attest_result.finished | bool
+      retries: 60
+      delay: 5
+      when: registry_image != "" and syft_sbom.rc == 0
+
+    - name: Clean up SBOM attestation log
+      ansible.builtin.file:
+        path: /tmp/cosign-attest-sbom.log
+        state: absent
+      when: registry_image != "" and syft_sbom.rc == 0
+
+    # ── Phase 11: Attach vulnerability scan attestation ───────────────────
+
+    - name: Start vulnerability attestation (async — device flow)
+      ansible.builtin.shell:
+        cmd: >-
+          {{ scan_config.scan_tools.cosign.path }} attest --yes
+          --predicate {{ trivy_img.report }}
+          --type vuln
+          {{ image_digest_ref }}
+          > /tmp/cosign-attest-vuln.log 2>&1
+      environment:
+        COSIGN_EXPERIMENTAL: "1"
+      async: 600
+      poll: 0
+      register: vuln_attest_job
+      when: registry_image != "" and trivy_img.rc == 0
+
+    - name: Wait for vulnerability attestation verification code
+      ansible.builtin.shell:
+        cmd: >-
+          grep -m1 'user_code\|verification code' /tmp/cosign-attest-vuln.log
+      register: vuln_device_code
+      until: vuln_device_code.rc == 0
+      retries: 30
+      delay: 2
+      changed_when: false
+      when: registry_image != "" and trivy_img.rc == 0
+
+    - name: Vulnerability attestation — browser authentication required
+      ansible.builtin.pause:
+        prompt: |
+
+          ═══════════════════════════════════════════════════════════════
+            COSIGN VULN ATTESTATION — Browser Authentication (3/3)
+          ═══════════════════════════════════════════════════════════════
+
+          {{ vuln_device_code.stdout }}
+
+          Open the URL in your browser and enter the verification code.
+          Press ENTER here after completing authentication.
+          ═══════════════════════════════════════════════════════════════
+      when: registry_image != "" and trivy_img.rc == 0
+
+    - name: Wait for vulnerability attestation to complete
+      ansible.builtin.async_status:
+        jid: "{{ vuln_attest_job.ansible_job_id }}"
+      register: vuln_attest_result
+      until: vuln_attest_result.finished | bool
+      retries: 60
+      delay: 5
+      when: registry_image != "" and trivy_img.rc == 0
+
+    - name: Clean up vulnerability attestation log
+      ansible.builtin.file:
+        path: /tmp/cosign-attest-vuln.log
+        state: absent
+      when: registry_image != "" and trivy_img.rc == 0
+
+    # ── Signing summary ──────────────────────────────────────────────────
+
+    - name: Display signing and attestation summary
+      ansible.builtin.debug:
+        msg: |
+          ══════════════════════════════════════════════════════════════════════
+            Image Signing & Attestation Summary
+            Image:  {{ registry_image }}
+            Digest: {{ image_digest_ref | default('N/A') }}
+          ══════════════════════════════════════════════════════════════════════
+
+          Phase 8  - Push to registry:          {{ 'PASS' if push_result.rc | default(1) == 0 else 'SKIP/FAIL' }}
+          Phase 9  - Cosign signature:          {{ 'PASS' if cosign_sign_result.rc | default(1) == 0 else 'SKIP/FAIL' }}
+          Phase 10 - SBOM attestation:          {{ 'PASS' if sbom_attest_result.rc | default(1) == 0 else 'SKIP/FAIL' }}
+          Phase 11 - Vulnerability attestation:  {{ 'PASS' if vuln_attest_result.rc | default(1) == 0 else 'SKIP/FAIL' }}
+
+          ══════════════════════════════════════════════════════════════════════
+
+          Consumers can verify with:
+            cosign verify {{ registry_image }}
+            cosign verify-attestation --type spdxjson {{ registry_image }}
+            cosign verify-attestation --type vuln {{ registry_image }}
+          ══════════════════════════════════════════════════════════════════════
+      when: registry_image != ""
+
+    # ── Report pruning ───────────────────────────────────────────────────
+
+    - name: Prune old build reports for ubi{{ os_ver }}
+      ansible.builtin.shell:
+        cmd: >-
+          ls -1dt {{ reports_base }}/build-ubi{{ os_ver }}-*/ 2>/dev/null
+          | tail -n +{{ (scan_config.reporting.keep_reports | default(10)) + 1 }}
+          | xargs -r rm -rf
+      changed_when: false
+      failed_when: false

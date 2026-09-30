@@ -1,5 +1,10 @@
-.vscode
-internal*
-ansible.cfg
 .vscode/
 .claude/
+internal*
+ansible.cfg
+scan-reports/
+extracted-info.zip
+*.old
+rhis-base/sources/
+rhis-base/4.7/
+rhis-base/test_cosign_sign.yml

@@ -1,0 +1,55 @@
+#!/bin/bash
+
+echo "Using rhis-builder-aap to run an aap role task."
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color/Normal
+printf "${GREEN}Start Time: %(%T)T${NC}\n" -1
+SECONDS=0
+
+sshuser="ansiblerunner"
+
+while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+        -u|--sshuser)
+            sshuser="$2"
+            shift # Shift past the value
+            ;;
+        -r|--rolename)
+            rolename="$2"
+            shift # Shift past the value
+            ;;
+        -t|--taskname)
+            taskname="$2"
+            shift # Shift past the value
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+    shift # Shift past the option
+done
+
+if [[ $rolename == "" ]]; then
+  echo "ERROR: A role name is required - exiting."
+  exit 1
+fi
+
+if [[ $taskname == "" ]]; then
+  echo "ERROR: A task name is required - exiting."
+  exit 1
+fi
+
+ansible-playbook --inventory /rhis/vars/external_inventory/inventory \
+                 --user $sshuser \
+                 --ask-pass \
+                 --ask-vault-pass \
+                 --extra-vars "vault_dir=/rhis/vars/vault" \
+                 --limit=platform_installer \
+                 --extra-vars "role_name=$rolename" \
+                 --extra-vars "task_name=$taskname" \
+                 run_role_task.yml
+
+duration=$SECONDS
+printf "\n${GREEN}End Time: %(%T)T${NC}\n" -1
+TZ=UTC0 printf "${GREEN}Elapsed Time: %(%T)T${NC}\n" $duration

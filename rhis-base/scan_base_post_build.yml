@@ -199,8 +199,9 @@
         grype_sbom: "{{ scan_results | selectattr('phase', 'eq', 'grype-sbom') | first }}"
 
     - name: Display post-build scan summary
-      ansible.builtin.debug:
-        msg: |
+      ansible.builtin.pause:
+        seconds: 0
+        prompt: |
           ══════════════════════════════════════════════════════════════════════
             Post-Build Security Scan Summary
             Image:     {{ image_name }}
@@ -281,8 +282,9 @@
         reconciliation: "{{ (reconcile_result.stdout | trim | from_json) if grype_sbom.rc != 0 else {'total_accepted': 0, 'added': 0, 'removed': 0, 'changed': 0, 'actionable': 0, 'added_cves': [], 'removed_cves': [], 'changed_cves': [], 'actionable_cves': []} }}"
 
     - name: Display reconciliation summary
-      ansible.builtin.debug:
-        msg: |
+      ansible.builtin.pause:
+        seconds: 0
+        prompt: |
           ══════════════════════════════════════════════════════════════════════
             CVE Risk Reconciliation
           ══════════════════════════════════════════════════════════════════════
@@ -358,8 +360,9 @@
     # ── Phase 8: Push image to registry ───────────────────────────────────
 
     - name: Skip signing phases if registry_image not set
-      ansible.builtin.debug:
-        msg: >-
+      ansible.builtin.pause:
+        seconds: 0
+        prompt: >-
           registry_image not set — skipping image push, signing, and
           attestation. Re-run with -e registry_image=quay.io/org/image:tag
           to enable.
@@ -389,8 +392,9 @@
       when: registry_image != ""
 
     - name: Display pushed image digest
-      ansible.builtin.debug:
-        msg: "Pushed {{ registry_image }} — digest: {{ image_digest_ref }}"
+      ansible.builtin.pause:
+        seconds: 0
+        prompt: "Pushed {{ registry_image }} — digest: {{ image_digest_ref }}"
       when: registry_image != ""
 
     - name: Clean up digest file
@@ -574,8 +578,9 @@
     # ── Signing summary ──────────────────────────────────────────────────
 
     - name: Display signing and attestation summary
-      ansible.builtin.debug:
-        msg: |
+      ansible.builtin.pause:
+        seconds: 0
+        prompt: |
           ══════════════════════════════════════════════════════════════════════
             Image Signing & Attestation Summary
             Image:  {{ registry_image }}

@@ -261,8 +261,9 @@
           changed_when: true
 
         - name: Display collection install summary
-          ansible.builtin.debug:
-            msg: "Collections installed to {{ collections_path }} in container {{ scan_container_name }}"
+          ansible.builtin.pause:
+            seconds: 0
+            prompt: "Collections installed to {{ collections_path }} in container {{ scan_container_name }}"
 
         # ── Phase 1: Collection Integrity Verification ────────────────────
 
@@ -424,8 +425,9 @@
             clam_result: "{{ scan_results | selectattr('phase', 'eq', 'clamav') | first }}"
 
         - name: Display pre-build scan summary
-          ansible.builtin.debug:
-            msg: |
+          ansible.builtin.pause:
+            seconds: 0
+            prompt: |
               ══════════════════════════════════════════════════════════════════════
                 Pre-Build Security Scan Summary
                 Target:    ubi{{ os_ver }} ({{ scan_image }})

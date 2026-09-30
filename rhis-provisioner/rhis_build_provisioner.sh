@@ -31,6 +31,11 @@ cosign_identity=""
 cosign_oidc_issuer=""
 skip_verify="false"
 
+# Source local config if present (not committed to git)
+if [[ -f "../build.local.conf" ]]; then
+    source "../build.local.conf"
+fi
+
 usage() {
             echo "Usage: rhis_build_provisioner.sh [options]"
             echo "Options:"

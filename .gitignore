@@ -8,3 +8,4 @@ extracted-info.zip
 rhis-base/sources/
 rhis-base/4.7/
 rhis-base/test_cosign_sign.yml
+build.local.conf

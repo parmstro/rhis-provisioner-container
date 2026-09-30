@@ -67,10 +67,10 @@
         repo: "https://github.com/parmstro/rhis-builder-bootstrap-init.git"
         version: "main"
         purge: true
-      - name: "rhis-builder-aws-lz"
-        repo: "https://github.com/parmstro/rhis-builder-aws-lz.git"
-        version: "main"
-        purge: true
+#      - name: "rhis-builder-aws-lz"
+#        repo: "https://github.com/parmstro/rhis-builder-aws-lz.git"
+#        version: "main"
+#        purge: true
       - name: "rhis-builder-azure-lz"
         repo: "https://github.com/parmstro/rhis-builder-azure-lz.git"
         version: "main"

@@ -1,0 +1,39 @@
+---
+# Accepted KICS IaC scan risks for rhis-provisioner container builds.
+#
+# Each entry documents a KICS query that has been reviewed and accepted.
+# The scan_kics_iac.yml playbook excludes these query IDs during scanning —
+# accepted queries produce no findings. Any NEW query not listed here
+# will still fail the build if it meets the severity threshold.
+#
+# When the underlying issue is fixed, remove the entry, rebuild, and
+# verify the finding is resolved.
+#
+# Read by: scan_kics_iac.yml
+# Reviewed by: parmstro
+# Last review: 2026-09-30
+# Next review: 2026-10-14
+
+accepted_queries:
+
+  # ── Passwords And Secrets - Generic Password ─────────────────────────
+  # KICS pattern-matches the word "password" in shell command strings
+  # and flags variable references like {{ keycloak_admin_password }} as
+  # hardcoded secrets. These are Ansible variables sourced from vault,
+  # not hardcoded values. The tasks also have no_log: true to prevent
+  # credential leakage in Ansible output.
+  #
+  # Affected files:
+  #   rhis-builder-keycloak/roles/keycloak/tasks/bootstrap_keycloak.yml
+  #   rhis-builder-keycloak/roles/keycloak/tasks/finalize_keycloak.yml
+
+  - query_id: "a88baa34-e2ad-44ea-ad6f-8cac87bc7c71"
+    query_name: "Passwords And Secrets - Generic Password"
+    severity: "HIGH"
+    reason: >-
+      False positive. KICS flags Ansible variable references containing
+      the word 'password' in shell commands. The actual values come from
+      vault and the tasks use no_log: true.
+    accepted_by: parmstro
+    accepted_date: "2026-09-30"
+    review_by: "2026-10-14"

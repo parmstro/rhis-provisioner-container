@@ -1,0 +1,42 @@
+---
+# Configuration for rhis-provisioner security scanning pipeline.
+#
+# The provisioner adds YAML playbook content on top of the already-scanned
+# rhis-base image. Full post-build scanning (Trivy + Syft SBOM + Grype +
+# accepted risks + push/sign/attest) ensures the final image is verified.
+#
+# Read by: scan_provisioner_pre_build.yml, scan_provisioner_post_build.yml
+
+scan_tools:
+  trivy:
+    path: "trivy"
+    offline_mode: false
+    cache_dir: "/var/lib/rhis-scan/trivy"
+    severity: "CRITICAL,HIGH"
+  grype:
+    path: "grype"
+    offline_mode: false
+    db_cache_dir: "/var/lib/rhis-scan/grype"
+    severity_cutoff: "high"
+    exclude_paths: []
+  syft:
+    path: "syft"
+    output_format: "spdx-json"
+  cosign:
+    path: "cosign"
+    signing_method: "keyless"
+  ansible_lint:
+    path: "ansible-lint"
+    profile: "safety"
+
+scan_policy:
+  fail_on_severity: "CRITICAL"
+  max_allowed_high: 0
+  fail_on_lint: true
+
+reporting:
+  reports_dir: "scan-reports"
+  trivy_format: "json"
+  grype_format: "json"
+  syft_format: "spdx-json"
+  keep_reports: 10

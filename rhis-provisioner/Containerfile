@@ -83,12 +83,15 @@ COPY deploy_rhel10_test_hosts.sh /rhis/rhis-builder-pipelines/deploy_rhel10_test
 COPY deploy_sat_capsule_hosts.sh /rhis/rhis-builder-pipelines/deploy_sat_capsule_hosts.sh
 
 COPY run_satellite_role.sh /rhis/rhis-builder-satellite/run_satellite_role.sh
+COPY run_satellite_role_task.sh /rhis/rhis-builder-satellite/run_satellite_role_task.sh
 COPY run_satellite_task.sh /rhis/rhis-builder-satellite/run_satellite_task.sh
 
 COPY run_idm_role.sh /rhis/rhis-builder-idm/run_idm_role.sh
+COPY run_idm_role_task.sh /rhis/rhis-builder-idm/run_idm_role_task.sh
 COPY run_idm_task.sh /rhis/rhis-builder-idm/run_idm_task.sh
 
 COPY run_aap_role.sh /rhis/rhis-builder-aap/run_aap_role.sh
+COPY run_aap_role_task.sh /rhis/rhis-builder-aap/run_aap_role_task.sh
 COPY run_aap_task.sh /rhis/rhis-builder-aap/run_aap_task.sh
 
 

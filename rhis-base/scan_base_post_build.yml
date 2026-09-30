@@ -260,64 +260,71 @@
         accepted_risks: {}
       when: not risks_file_stat.stat.exists
 
-    - name: Write accepted CVE list for risk assessment
-      ansible.builtin.copy:
-        dest: "/tmp/rhis-accepted-cves.json"
-        mode: "0644"
-        content: "{{ accepted_risks.keys() | list | to_json }}"
-      when: grype_sbom.rc != 0
-
-    - name: Assess Grype findings against accepted risks
-      ansible.builtin.shell:
-        cmd: |
-          python3 << 'PYEOF'
-          import json, sys
-
-          with open('{{ grype_sbom.report }}') as f:
-              data = json.load(f)
-
-          with open('/tmp/rhis-accepted-cves.json') as f:
-              accepted_cves = set(json.load(f))
-
-          cutoff = '{{ scan_config.scan_tools.grype.severity_cutoff }}'
-          sev_order = {'negligible':0,'low':1,'medium':2,'high':3,'critical':4}
-          cutoff_val = sev_order.get(cutoff.lower(), 3)
-
-          unaccepted = []
-          accepted_used = []
-          seen = set()
-
-          for m in data.get('matches', []):
-              v = m.get('vulnerability', {})
-              cve = v.get('id', '')
-              sev = v.get('severity', 'Unknown')
-              if sev_order.get(sev.lower(), 0) < cutoff_val:
-                  continue
-              pkg = m.get('artifact', {}).get('name', '?')
-              key = cve + ':' + pkg
-              if key in seen:
-                  continue
-              seen.add(key)
-              if cve in accepted_cves:
-                  accepted_used.append({'cve': cve, 'severity': sev, 'package': pkg})
-              else:
-                  unaccepted.append({'cve': cve, 'severity': sev, 'package': pkg})
-
-          print(json.dumps({'unaccepted': unaccepted, 'accepted': accepted_used}))
-          PYEOF
-      register: risk_assessment_raw
+    - name: Reconcile Grype findings with accepted risks
+      ansible.builtin.command:
+        cmd: >-
+          python3 {{ playbook_dir }}/reconcile_accepted_risks.py
+          --grype-report {{ grype_sbom.report }}
+          --accepted-risks {{ accepted_risks_file }}
+          --output {{ accepted_risks_file }}
+          --severity-cutoff {{ scan_config.scan_tools.grype.severity_cutoff }}
+          --accepted-by {{ accepted_by | default('parmstro') }}
+          --reconcile-report {{ reports_dir }}/risk-reconciliation.txt
+          --image-name {{ image_name }}
+      register: reconcile_result
       changed_when: false
+      failed_when: reconcile_result.rc == 2
       when: grype_sbom.rc != 0
 
-    - name: Clean up temporary accepted CVE list
-      ansible.builtin.file:
-        path: /tmp/rhis-accepted-cves.json
-        state: absent
-      when: grype_sbom.rc != 0
-
-    - name: Parse risk assessment
+    - name: Parse reconciliation result
       ansible.builtin.set_fact:
-        risk_assessment: "{{ (risk_assessment_raw.stdout | trim | from_json) if grype_sbom.rc != 0 else {'unaccepted': [], 'accepted': []} }}"
+        reconciliation: "{{ (reconcile_result.stdout | trim | from_json) if grype_sbom.rc != 0 else {'total_accepted': 0, 'added': 0, 'removed': 0, 'changed': 0, 'actionable': 0, 'added_cves': [], 'removed_cves': [], 'changed_cves': [], 'actionable_cves': []} }}"
+
+    - name: Display reconciliation summary
+      ansible.builtin.debug:
+        msg: |
+          ══════════════════════════════════════════════════════════════════════
+            CVE Risk Reconciliation
+          ══════════════════════════════════════════════════════════════════════
+
+          Total accepted:  {{ reconciliation.total_accepted }}
+          Auto-accepted:   {{ reconciliation.added }} (no fix available)
+          Patched/removed: {{ reconciliation.removed }}
+          Fix status changed: {{ reconciliation.changed }}
+          Actionable (fix available): {{ reconciliation.actionable }}
+          {% if reconciliation.removed > 0 %}
+
+          PATCHED — removed from accepted risks:
+          {% for cve in reconciliation.removed_cves %}
+            ✓ {{ cve }}
+          {% endfor %}
+          {% endif %}
+          {% if reconciliation.added > 0 %}
+
+          NEW — auto-accepted (no vendor fix):
+          {% for cve in reconciliation.added_cves %}
+            + {{ cve }}
+          {% endfor %}
+          {% endif %}
+          {% if reconciliation.changed > 0 %}
+
+          CHANGED — fix now available, review required:
+          {% for cve in reconciliation.changed_cves %}
+            ! {{ cve }}
+          {% endfor %}
+          {% endif %}
+          {% if reconciliation.actionable > 0 %}
+
+          BLOCKED — fix available, must patch or accept:
+          {% for cve in reconciliation.actionable_cves %}
+            ✗ {{ cve }}
+          {% endfor %}
+          {% endif %}
+
+          Full report: {{ reports_dir }}/risk-reconciliation.txt
+          Updated risks: {{ accepted_risks_file }}
+          ══════════════════════════════════════════════════════════════════════
+      when: grype_sbom.rc != 0
 
     - name: Build policy violations list
       ansible.builtin.set_fact:
@@ -326,62 +333,12 @@
           {%- if syft_sbom.rc != 0 -%}
             {%- set _ = violations.append('Syft SBOM generation failed') -%}
           {%- endif -%}
-          {%- if grype_sbom.rc != 0 and risk_assessment.unaccepted | length > 0 -%}
-            {%- set cnt = risk_assessment.unaccepted | length | string -%}
-            {%- set sev = scan_config.scan_tools.grype.severity_cutoff -%}
+          {%- if reconciliation.actionable > 0 -%}
+            {%- set cnt = reconciliation.actionable | string -%}
             {%- set _ = violations.append(
-                  'Grype found ' + cnt +
-                  ' UNACCEPTED vulnerabilities at or above '
-                  + sev + ' severity') -%}
+                  cnt + ' CVEs have fixes available — patch or explicitly accept') -%}
           {%- endif -%}
           {{ violations }}
-
-    - name: Display accepted risk summary
-      ansible.builtin.debug:
-        msg: |
-          ══════════════════════════════════════════════════════════════════════
-            Accepted Risk Assessment
-          ══════════════════════════════════════════════════════════════════════
-          {% if risk_assessment.accepted | length > 0 %}
-          Accepted CVEs ({{ risk_assessment.accepted | length }} findings):
-          {% for f in risk_assessment.accepted %}
-            ⚠ {{ f.severity }}: {{ f.cve }} ({{ f.package }})
-          {% endfor %}
-          {% endif %}
-          {% if risk_assessment.unaccepted | length > 0 %}
-
-          UNACCEPTED CVEs ({{ risk_assessment.unaccepted | length }} findings):
-          {% for f in risk_assessment.unaccepted %}
-            ✗ {{ f.severity }}: {{ f.cve }} ({{ f.package }})
-          {% endfor %}
-          {% else %}
-
-          All {{ risk_assessment.accepted | length }} Grype findings are covered by accepted risks.
-          {% endif %}
-          ══════════════════════════════════════════════════════════════════════
-      when: grype_sbom.rc != 0
-
-    - name: Save risk acceptance report
-      ansible.builtin.copy:
-        dest: "{{ reports_dir }}/risk-acceptance.txt"
-        owner: "{{ run_user }}"
-        group: "{{ run_user }}"
-        mode: "0644"
-        content: |
-          Risk Acceptance Report
-          Image: {{ image_name }}
-          Timestamp: {{ scan_timestamp }}
-          Accepted risks file: {{ accepted_risks_file }}
-
-          Accepted CVEs: {{ risk_assessment.accepted | length }}
-          Unaccepted CVEs: {{ risk_assessment.unaccepted | length }}
-          {% for f in risk_assessment.accepted %}
-          ACCEPTED  {{ f.severity }}  {{ f.cve }}  {{ f.package }}  reason: {{ accepted_risks[f.cve].reason | default('see accepted risks file') }}
-          {% endfor %}
-          {% for f in risk_assessment.unaccepted %}
-          BLOCKED   {{ f.severity }}  {{ f.cve }}  {{ f.package }}
-          {% endfor %}
-      when: grype_sbom.rc != 0
 
     - name: Enforce scan policy
       ansible.builtin.fail:
@@ -394,6 +351,7 @@
           {% endfor %}
 
           Review reports in: {{ reports_dir }}/
+          Updated risks file: {{ accepted_risks_file }}
           Image built but NOT pushed. Version file NOT updated.
       when: policy_violations | length > 0
 

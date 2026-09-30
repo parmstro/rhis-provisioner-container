@@ -90,6 +90,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 stage_sources() {
+  mkdir -p sources
   rm -f sources/*
   cp $ansiblecfg sources/ansible.cfg
   cp ansible.cfg.clean sources/ansible.cfg.clean

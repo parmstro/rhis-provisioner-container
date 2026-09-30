@@ -317,7 +317,7 @@ verify_base_signature() {
     echo "  Image:      $base_image"
     echo "  Identity:   ${cosign_identity:-'(any)'}"
     echo "  Issuer:     ${cosign_oidc_issuer:-'(any)'}"
-    echo "  Cosign:     $(cosign version 2>/dev/null | head -1)"
+    echo "  Cosign:     $(cosign version 2>/dev/null | grep -oP 'GitVersion:\s+\K\S+' || echo 'unknown')"
     echo "═══════════════════════════════════════════════════════════════"
   } | tee -a "$verify_log"
 

@@ -1,0 +1,114 @@
+---
+# Configuration for validate_collection_compatibility.yml
+#
+# targets: define container images and the minimum ansible-core version expected.
+#   The playbook introspects the actual container to get the running version.
+#   If the introspected version is less than min_ansible_core, it errors out.
+#
+# collections: define each collection, its source, which targets it applies to,
+#   and whether it is an override (works despite requires_ansible mismatch).
+#
+# version_pin: optional explicit version constraint to use in generated output.
+#   For overrides, this preserves specific pins (e.g. ">4.7") that can't be
+#   auto-derived. For non-overrides, it's ignored — the playbook calculates the cap.
+#
+# Usage:
+#   ansible-playbook validate_collection_compatibility.yml -e target=ubi9
+#   ansible-playbook validate_collection_compatibility.yml -e target=ubi10
+#   ansible-playbook validate_collection_compatibility.yml -e target=ubi9 -e generate_requirements=true
+
+targets:
+  ubi9:
+    image: "registry.access.redhat.com/ubi9:latest"
+    min_ansible_core: "2.14.18"
+  ubi10:
+    image: "registry.access.redhat.com/ubi10:latest"
+    min_ansible_core: "2.16.0"
+
+collections:
+  - name: "ansible.controller"
+    source: "automation_hub"
+    targets: [ubi9, ubi10]
+    override: true
+    version_pin: ">4.7"
+    notes: "declares >=2.15.0 but modules used work with 2.14.18"
+
+  - name: "ansible.utils"
+    source: "galaxy"
+    targets: [ubi9, ubi10]
+    override: true
+    version_pin: "<6.0.0"
+    notes: "declares >=2.15.0 in 5.x but modules used work with 2.14.18"
+
+  - name: "ansible.platform"
+    source: "automation_hub"
+    targets: [ubi9, ubi10]
+    override: true
+    version_pin: ">=2.7.20260812"
+    notes: "declares >=2.16.0, no older version exists; tested with rhis-provisioner-9.25:1.130 on rhis-base 1.16"
+
+  - name: "ansible.posix"
+    source: "galaxy"
+    targets: [ubi9, ubi10]
+
+  - name: "ansible.netcommon"
+    source: "galaxy"
+    targets: [ubi9, ubi10]
+
+  - name: "azure.azcollection"
+    source: "galaxy"
+    targets: [ubi9, ubi10]
+
+  - name: "community.aws"
+    source: "galaxy"
+    targets: [ubi9, ubi10]
+
+  - name: "community.crypto"
+    source: "galaxy"
+    targets: [ubi9, ubi10]
+
+  - name: "community.general"
+    source: "galaxy"
+    targets: [ubi9, ubi10]
+
+  - name: "community.postgresql"
+    source: "galaxy"
+    targets: [ubi9, ubi10]
+
+  - name: "community.vmware"
+    source: "galaxy"
+    targets: [ubi9, ubi10]
+
+  - name: "containers.podman"
+    source: "galaxy"
+    targets: [ubi9, ubi10]
+
+  - name: "redhat.rhel_idm"
+    source: "automation_hub"
+    targets: [ubi9, ubi10]
+    min_version: "1.14.7"
+    notes: "earlier versions fail with dns_over_tls option error"
+
+  - name: "redhat.rhel_system_roles"
+    source: "automation_hub"
+    targets: [ubi9, ubi10]
+    override: true
+    notes: "declares >=2.15.0 but modules used work with 2.14.18"
+
+  - name: "redhat.satellite"
+    source: "automation_hub"
+    targets: [ubi9, ubi10]
+    override: true
+    notes: "declares >=2.16.0 but modules used work with 2.14.18"
+
+  - name: "redhat.satellite_operations"
+    source: "automation_hub"
+    targets: [ubi9, ubi10]
+    override: true
+    notes: "declares >=2.16.0 but modules used work with 2.14.18"
+
+  - name: "vmware.vmware"
+    source: "galaxy"
+    targets: [ubi9, ubi10]
+    override: true
+    notes: "declares >=2.15.0, no older version exists; works with 2.14.18"

@@ -1,0 +1,530 @@
+---
+# Pre-build security scanning for rhis-base collections.
+#
+# Spins up a disposable container from the target UBI image, installs
+# collections inside it, then runs four independent scan phases:
+#   1. ansible-galaxy collection verify (GPG/checksum integrity)
+#   2. trivy fs (CVEs + secrets + misconfigs)
+#   3. grype dir: (second-opinion CVEs)
+#   4. clamscan (malware signatures)
+#
+# All findings are collected; policy is enforced at the end.
+# Container and SELinux cleanup is guaranteed via block/always.
+#
+# Usage:
+#   ansible-playbook scan_base_pre_build.yml -e os_ver=9 -e ansible_cfg=/etc/ansible/ansible.cfg
+#   ansible-playbook scan_base_pre_build.yml -e os_ver=9 -e ansible_cfg=/etc/ansible/ansible.cfg -e config_file=./scan_collections_config.yml
+
+- name: Pre-build security scan for rhis-base collections
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    os_ver: ""
+    ansible_cfg: "/etc/ansible/ansible.cfg"
+    config_file: "{{ playbook_dir }}/scan_collections_config.yml"
+    collections_config_file: "{{ playbook_dir }}/validate_collections_config.yml"
+    requirements_file: ""
+    run_user: "{{ lookup('env', 'USER') }}"
+    scan_results: []
+
+  tasks:
+
+    # ── Preflight checks ──────────────────────────────────────────────────
+
+    - name: Set scan timestamp
+      ansible.builtin.set_fact:
+        scan_timestamp: "{{ now(utc=true).strftime('%Y%m%d-%H%M%S') }}"
+
+    - name: Set scan container name
+      ansible.builtin.set_fact:
+        scan_container_name: "rhis-scan-{{ scan_timestamp }}"
+
+    - name: Clean up stale scan containers from previous runs
+      ansible.builtin.shell:
+        cmd: >-
+          podman ps -a --format '{{ '{{' }}.Names{{ '}}' }}'
+          | grep '^rhis-scan-' | while read name; do
+            podman rm -f "$name" 2>/dev/null;
+          done
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if running user cannot be determined
+      ansible.builtin.fail:
+        msg: "Cannot determine running user. The USER environment variable is not set."
+      when: run_user == ""
+
+    - name: Fail if os_ver not specified
+      ansible.builtin.fail:
+        msg: "You must specify os_ver. Usage: -e os_ver=9"
+      when: os_ver == ""
+
+    - name: Fail if ansible_cfg not specified
+      ansible.builtin.fail:
+        msg: "You must specify ansible_cfg. Usage: -e ansible_cfg=/etc/ansible/ansible.cfg"
+      when: ansible_cfg == ""
+
+    - name: Verify ansible_cfg exists
+      ansible.builtin.stat:
+        path: "{{ ansible_cfg }}"
+      register: ansible_cfg_stat
+
+    - name: Fail if ansible_cfg file not found
+      ansible.builtin.fail:
+        msg: "ansible.cfg not found at {{ ansible_cfg }}"
+      when: not ansible_cfg_stat.stat.exists
+
+    - name: Read scan configuration
+      ansible.builtin.slurp:
+        src: "{{ config_file }}"
+      register: scan_config_raw
+
+    - name: Parse scan configuration
+      ansible.builtin.set_fact:
+        scan_config: "{{ scan_config_raw.content | b64decode | from_yaml }}"
+
+    - name: Read collections configuration
+      ansible.builtin.slurp:
+        src: "{{ collections_config_file }}"
+      register: collections_config_raw
+
+    - name: Parse collections configuration
+      ansible.builtin.set_fact:
+        collections_config: "{{ collections_config_raw.content | b64decode | from_yaml }}"
+
+    - name: Set target UBI image
+      ansible.builtin.set_fact:
+        scan_image: >-
+          {{ scan_config.pre_build.scan_container_image
+             if (scan_config.pre_build.scan_container_image | default('') != '')
+             else collections_config.targets['ubi' + os_ver].image }}
+
+    - name: Check for versioned requirements file
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/requirements.{{ os_ver }}.yml"
+      register: req_versioned
+
+    - name: Check for UBI-named requirements file
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/requirements-ubi{{ os_ver }}.yml"
+      register: req_ubi
+      when: not req_versioned.stat.exists
+
+    - name: Check for generic requirements file
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/requirements.yml"
+      register: req_generic
+      when: not req_versioned.stat.exists and not (req_ubi.stat.exists | default(false))
+
+    - name: Resolve requirements file
+      ansible.builtin.set_fact:
+        resolved_requirements: >-
+          {%- if requirements_file != '' -%}{{ requirements_file }}
+          {%- elif req_versioned.stat.exists -%}{{ playbook_dir }}/requirements.{{ os_ver }}.yml
+          {%- elif req_ubi.stat.exists | default(false) -%}{{ playbook_dir }}/requirements-ubi{{ os_ver }}.yml
+          {%- elif req_generic.stat.exists | default(false) -%}{{ playbook_dir }}/requirements.yml
+          {%- else -%}NOTFOUND
+          {%- endif -%}
+
+    - name: Fail if no requirements file found
+      ansible.builtin.fail:
+        msg: >-
+          No requirements file found. Searched for:
+          requirements.{{ os_ver }}.yml, requirements-ubi{{ os_ver }}.yml, requirements.yml
+          in {{ playbook_dir }}
+      when: resolved_requirements | trim == 'NOTFOUND'
+
+    - name: Set collections install path
+      ansible.builtin.set_fact:
+        collections_path: "{{ scan_config.pre_build.collections_install_path | default('/tmp/rhis-scan-collections') }}"
+        reports_base: "{{ playbook_dir }}/{{ scan_config.reporting.reports_dir | default('scan-reports') }}"
+
+    - name: Set reports directory (standalone fallback)
+      ansible.builtin.set_fact:
+        reports_dir: "{{ playbook_dir }}/{{ scan_config.reporting.reports_dir | default('scan-reports') }}/build-ubi{{ os_ver }}-{{ scan_timestamp }}"
+      when: reports_dir is not defined or reports_dir == ''
+
+    - name: Create reports directory
+      ansible.builtin.file:
+        path: "{{ reports_dir }}"
+        state: directory
+        owner: "{{ run_user }}"
+        group: "{{ run_user }}"
+        mode: "0755"
+
+    - name: Verify scan tools are available
+      ansible.builtin.command:
+        cmd: "which {{ item }}"
+      loop:
+        - "{{ scan_config.scan_tools.trivy.path }}"
+        - "{{ scan_config.scan_tools.grype.path }}"
+        - "{{ scan_config.scan_tools.clamav.path }}"
+      loop_control:
+        label: "{{ item }}"
+      register: tool_checks
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if required scan tools are missing
+      ansible.builtin.fail:
+        msg: >-
+          Missing scan tools: {{ tool_checks.results
+            | selectattr('rc', 'ne', 0)
+            | map(attribute='item')
+            | list | join(', ') }}.
+          Run install_scan_tools.sh first.
+      when: tool_checks.results | selectattr('rc', 'ne', 0) | list | length > 0
+
+    # ── Container scan work (block/always for guaranteed cleanup) ─────────
+
+    - block:
+
+        # ── Set up disposable scan container ──────────────────────────────
+
+        - name: Pull scan container image
+          ansible.builtin.command:
+            cmd: "podman pull {{ scan_image }}"
+          changed_when: false
+
+        - name: Start disposable scan container
+          ansible.builtin.command:
+            cmd: >-
+              podman run -d --name {{ scan_container_name }}
+              -v {{ resolved_requirements | trim }}:/tmp/requirements.yml:ro,z
+              {{ scan_image }}
+              sleep infinity
+
+        - name: Verify scan container is running
+          ansible.builtin.command:
+            cmd: "podman inspect {{ scan_container_name }} --format {{'{{'}}.State.Running{{'}}'}}"
+          register: container_state
+          changed_when: false
+
+        - name: Fail if scan container is not running
+          ansible.builtin.fail:
+            msg: >-
+              Scan container {{ scan_container_name }} is not running.
+              Check disk space and container logs: podman logs {{ scan_container_name }}
+          when: container_state.stdout | trim != 'true'
+
+        - name: Create ansible config directory in scan container
+          ansible.builtin.command:
+            cmd: "podman exec {{ scan_container_name }} mkdir -p /etc/ansible"
+
+        - name: Copy ansible.cfg into scan container
+          ansible.builtin.command:
+            cmd: "podman cp {{ ansible_cfg }} {{ scan_container_name }}:/etc/ansible/ansible.cfg"
+
+        - name: Install ansible-core in scan container
+          ansible.builtin.command:
+            cmd: "podman exec {{ scan_container_name }} dnf install -y ansible-core"
+          changed_when: true
+
+        - name: Verify container still running after ansible-core install
+          ansible.builtin.command:
+            cmd: "podman inspect {{ scan_container_name }} --format {{'{{'}}.State.Running{{'}}'}}"
+          register: post_dnf_state
+          changed_when: false
+
+        - name: Fail if container died during ansible-core install
+          ansible.builtin.fail:
+            msg: >-
+              Scan container {{ scan_container_name }} died during ansible-core install.
+              Likely cause: disk space or OOM. Check: podman logs {{ scan_container_name }}
+          when: post_dnf_state.stdout | trim != 'true'
+
+        - name: Verify requirements file accessible inside container
+          ansible.builtin.command:
+            cmd: "podman exec {{ scan_container_name }} stat /tmp/requirements.yml"
+          register: req_file_check
+          changed_when: false
+          failed_when: false
+
+        - name: Fail if requirements file not visible in container
+          ansible.builtin.fail:
+            msg: >-
+              Bind-mounted requirements file is not accessible at /tmp/requirements.yml
+              inside {{ scan_container_name }}. Source: {{ resolved_requirements | trim }}.
+              This can happen if dnf post-install scriptlets interfere with /tmp.
+              Try re-running the scan.
+          when: req_file_check.rc != 0
+
+        - name: Install collections in scan container
+          ansible.builtin.command:
+            cmd: >-
+              podman exec {{ scan_container_name }}
+              ansible-galaxy collection install -r /tmp/requirements.yml
+              -p {{ collections_path }}
+          register: collection_install
+          changed_when: true
+
+        - name: Display collection install summary
+          ansible.builtin.debug:
+            msg: "Collections installed to {{ collections_path }} in container {{ scan_container_name }}"
+
+        # ── Phase 1: Collection Integrity Verification ────────────────────
+
+        - name: Get list of installed collections
+          ansible.builtin.command:
+            cmd: >-
+              podman exec {{ scan_container_name }}
+              ansible-galaxy collection list -p {{ collections_path }} --format json
+          register: installed_collections_raw
+          changed_when: false
+
+        - name: Verify collection integrity
+          ansible.builtin.command:
+            cmd: >-
+              podman exec {{ scan_container_name }}
+              ansible-galaxy collection verify {{ item.name }}
+              -p {{ collections_path }}
+          loop: "{{ collections_config.collections | selectattr('targets', 'contains', 'ubi' + os_ver) | list }}"
+          loop_control:
+            label: "{{ item.name }}"
+          register: verify_results
+          changed_when: false
+          failed_when: false
+
+        - name: Record verification results
+          ansible.builtin.set_fact:
+            scan_results: >-
+              {{ scan_results + [{
+                'phase': 'collection-verify',
+                'passed': (verify_results.results | selectattr('rc', 'eq', 0) | list | length),
+                'failed': (verify_results.results | selectattr('rc', 'ne', 0) | list | length),
+                'failures': (verify_results.results | selectattr('rc', 'ne', 0) | map(attribute='item') | map(attribute='name') | list),
+                'rc': 0 if (verify_results.results | selectattr('rc', 'ne', 0) | list | length == 0) else 1
+              }] }}
+
+        - name: Save verification report
+          ansible.builtin.copy:
+            dest: "{{ reports_dir }}/collection-verify.txt"
+            owner: "{{ run_user }}"
+            group: "{{ run_user }}"
+            mode: "0644"
+            content: |
+              Collection Integrity Verification Report
+              Timestamp: {{ scan_timestamp }}
+              Target: ubi{{ os_ver }}
+              {% for r in verify_results.results %}
+              {{ r.item.name }}: {{ 'PASS' if r.rc == 0 else 'FAIL' }}
+              {% if r.rc != 0 %}
+                {{ r.stderr | default(r.stdout | default('unknown error')) }}
+              {% endif %}
+              {% endfor %}
+
+        # ── Phase 2: Trivy Filesystem Scan ────────────────────────────────
+
+        - name: Copy collections out of container for host-side scanning
+          ansible.builtin.command:
+            cmd: "podman cp {{ scan_container_name }}:{{ collections_path }} /tmp/rhis-scan-export"
+          changed_when: true
+
+        - name: Run Trivy filesystem scan
+          ansible.builtin.command:
+            cmd: >-
+              {{ scan_config.scan_tools.trivy.path }} fs
+              --severity {{ scan_config.scan_tools.trivy.severity }}
+              --format {{ scan_config.reporting.trivy_format }}
+              --output {{ reports_dir }}/trivy-fs.json
+              {% if scan_config.scan_tools.trivy.offline_mode | default(false) %}--skip-db-update{% endif %}
+              {% if scan_config.scan_tools.trivy.cache_dir | default('') != '' %}--cache-dir {{ scan_config.scan_tools.trivy.cache_dir }}{% endif %}
+              {% if scan_config.scan_tools.trivy.skip_dirs | default('') != '' %}--skip-dirs {{ scan_config.scan_tools.trivy.skip_dirs }}{% endif %}
+              /tmp/rhis-scan-export
+          register: trivy_fs_result
+          changed_when: false
+          failed_when: false
+
+        - name: Parse Trivy results
+          ansible.builtin.set_fact:
+            trivy_fs_findings: "{{ lookup('file', reports_dir + '/trivy-fs.json') | from_json }}"
+          failed_when: false
+          register: trivy_parse
+
+        - name: Record Trivy results
+          ansible.builtin.set_fact:
+            scan_results: >-
+              {{ scan_results + [{
+                'phase': 'trivy-fs',
+                'rc': trivy_fs_result.rc,
+                'report': reports_dir + '/trivy-fs.json'
+              }] }}
+
+        # ── Phase 3: Grype Directory Scan ─────────────────────────────────
+
+        - name: Run Grype directory scan
+          ansible.builtin.command:
+            cmd: >-
+              {{ scan_config.scan_tools.grype.path }}
+              dir:/tmp/rhis-scan-export
+              --output {{ scan_config.reporting.grype_format }}
+              --file {{ reports_dir }}/grype-fs.json
+              --fail-on {{ scan_config.scan_tools.grype.severity_cutoff }}
+              {% for path in scan_config.scan_tools.grype.exclude_paths | default([]) %}
+              --exclude {{ path }}
+              {% endfor %}
+          register: grype_fs_result
+          changed_when: false
+          failed_when: false
+          environment:
+            GRYPE_DB_AUTO_UPDATE: "{{ 'false' if scan_config.scan_tools.grype.offline_mode | default(false) else 'true' }}"
+            GRYPE_DB_CACHE_DIR: "{{ scan_config.scan_tools.grype.db_cache_dir | default('') }}"
+
+        - name: Record Grype results
+          ansible.builtin.set_fact:
+            scan_results: >-
+              {{ scan_results + [{
+                'phase': 'grype-fs',
+                'rc': grype_fs_result.rc,
+                'report': reports_dir + '/grype-fs.json'
+              }] }}
+
+        # ── Phase 4: ClamAV Malware Scan ──────────────────────────────────
+
+        - name: Update ClamAV database before scan
+          ansible.builtin.command:
+            cmd: "{{ scan_config.scan_tools.clamav.freshclam_path | default('freshclam') }}"
+          become: true
+          changed_when: true
+          when: not (scan_config.scan_tools.clamav.offline_mode | default(false))
+          failed_when: false
+
+        - name: Run ClamAV malware scan
+          ansible.builtin.command:
+            cmd: >-
+              {{ scan_config.scan_tools.clamav.path }} --recursive --infected
+              --max-filesize={{ scan_config.scan_tools.clamav.max_filesize | default('100M') }}
+              --max-scansize={{ scan_config.scan_tools.clamav.max_scansize | default('400M') }}
+              {% if scan_config.scan_tools.clamav.db_dir | default('') != '' %}--database={{ scan_config.scan_tools.clamav.db_dir }}{% endif %}
+              --log={{ reports_dir }}/clamscan.log
+              /tmp/rhis-scan-export
+          register: clamav_result
+          changed_when: false
+          failed_when: false
+
+        - name: Record ClamAV results
+          ansible.builtin.set_fact:
+            scan_results: >-
+              {{ scan_results + [{
+                'phase': 'clamav',
+                'rc': clamav_result.rc,
+                'clean': (clamav_result.rc == 0),
+                'report': reports_dir + '/clamscan.log'
+              }] }}
+
+        # ── Report and Policy Enforcement ─────────────────────────────────
+
+        - name: Build scan summary
+          ansible.builtin.set_fact:
+            verify_result: "{{ scan_results | selectattr('phase', 'eq', 'collection-verify') | first }}"
+            trivy_result: "{{ scan_results | selectattr('phase', 'eq', 'trivy-fs') | first }}"
+            grype_result: "{{ scan_results | selectattr('phase', 'eq', 'grype-fs') | first }}"
+            clam_result: "{{ scan_results | selectattr('phase', 'eq', 'clamav') | first }}"
+
+        - name: Display pre-build scan summary
+          ansible.builtin.debug:
+            msg: |
+              ══════════════════════════════════════════════════════════════════════
+                Pre-Build Security Scan Summary
+                Target:    ubi{{ os_ver }} ({{ scan_image }})
+                Timestamp: {{ scan_timestamp }}
+              ══════════════════════════════════════════════════════════════════════
+
+              Phase 1 - Collection Integrity:
+                Passed: {{ verify_result.passed }}
+                Failed: {{ verify_result.failed }}
+              {% if verify_result.failures | length > 0 %}
+                Failures: {{ verify_result.failures | join(', ') }}
+              {% endif %}
+
+              Phase 2 - Trivy Filesystem (CVEs + Secrets):
+                Exit code: {{ trivy_result.rc }}
+                Report: {{ trivy_result.report }}
+
+              Phase 3 - Grype Directory (CVEs):
+                Exit code: {{ grype_result.rc }}
+                Report: {{ grype_result.report }}
+
+              Phase 4 - ClamAV Malware:
+                Status: {{ 'CLEAN' if clam_result.clean else 'INFECTED' }}
+                Report: {{ clam_result.report }}
+
+              ══════════════════════════════════════════════════════════════════════
+
+        - name: Save scan summary
+          ansible.builtin.copy:
+            dest: "{{ reports_dir }}/scan-summary.txt"
+            owner: "{{ run_user }}"
+            group: "{{ run_user }}"
+            mode: "0644"
+            content: |
+              Pre-Build Security Scan Summary
+              Target: ubi{{ os_ver }} ({{ scan_image }})
+              Timestamp: {{ scan_timestamp }}
+
+              Collection Verify: {{ verify_result.passed }} passed, {{ verify_result.failed }} failed
+              Trivy FS: exit {{ trivy_result.rc }}
+              Grype Dir: exit {{ grype_result.rc }}
+              ClamAV: {{ 'CLEAN' if clam_result.clean else 'INFECTED' }}
+
+        # ── Policy enforcement ────────────────────────────────────────────
+
+        - name: Build policy violations list
+          ansible.builtin.set_fact:
+            policy_violations: >-
+              {%- set violations = [] -%}
+              {%- if scan_config.scan_policy.fail_on_signature_mismatch | default(true) and verify_result.failed > 0 -%}
+                {%- set _ = violations.append('Collection integrity check failed for: ' + verify_result.failures | join(', ')) -%}
+              {%- endif -%}
+              {%- if trivy_result.rc != 0 -%}
+                {%- set _ = violations.append('Trivy found vulnerabilities at or above ' + scan_config.scan_tools.trivy.severity + ' severity') -%}
+              {%- endif -%}
+              {%- if grype_result.rc != 0 -%}
+                {%- set _ = violations.append('Grype found vulnerabilities at or above ' + scan_config.scan_tools.grype.severity_cutoff + ' severity') -%}
+              {%- endif -%}
+              {%- if scan_config.scan_policy.fail_on_malware | default(true) and not clam_result.clean -%}
+                {%- set _ = violations.append('ClamAV detected malware') -%}
+              {%- endif -%}
+              {{ violations }}
+
+        - name: Enforce scan policy
+          ansible.builtin.fail:
+            msg: |
+              ╔══════════════════════════════════════════════════════════════════╗
+              ║  PRE-BUILD SCAN FAILED — Policy Violations                     ║
+              ╚══════════════════════════════════════════════════════════════════╝
+              {% for v in policy_violations %}
+                ✗ {{ v }}
+              {% endfor %}
+
+              Review reports in: {{ reports_dir }}/
+              Build aborted. No container image was created.
+          when: policy_violations | length > 0
+
+      # ── Guaranteed cleanup (runs on success, failure, or error) ─────────
+      # podman rm restores SELinux labels on bind-mounted files, so the
+      # container must always be removed to ensure clean label state.
+      always:
+
+        - name: Stop and remove disposable scan container
+          ansible.builtin.command:
+            cmd: "podman rm -f {{ scan_container_name }}"
+          changed_when: true
+          failed_when: false
+
+        - name: Remove exported scan files
+          ansible.builtin.file:
+            path: "/tmp/rhis-scan-export"
+            state: absent
+          when: scan_config.pre_build.cleanup_after_scan | default(true)
+
+        - name: Prune old build reports for ubi{{ os_ver }}
+          ansible.builtin.shell:
+            cmd: >-
+              ls -1dt {{ reports_base }}/build-ubi{{ os_ver }}-*/ 2>/dev/null
+              | tail -n +{{ (scan_config.reporting.keep_reports | default(10)) + 1 }}
+              | xargs -r rm -rf
+          changed_when: false
+          failed_when: false

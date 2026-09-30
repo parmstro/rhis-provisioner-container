@@ -27,6 +27,10 @@ push_registry_repo="parmstro"
 push_registry_login=""
 push_registry_token=""
 
+cosign_identity=""
+cosign_oidc_issuer=""
+skip_verify="false"
+
 usage() {
             echo "Usage: rhis_build_provisioner.sh [options]"
             echo "Options:"
@@ -51,6 +55,10 @@ usage() {
             echo "    --version-mode - increment major, minor, or revision version of the build"
             echo "    --scan - enable security scanning (default: enabled)"
             echo "    --no-scan - skip security scanning for quick dev iterations"
+            echo ""
+            echo "    --cosign-identity - certificate identity for cosign verify of the base image (e.g. user@example.com)"
+            echo "    --cosign-oidc-issuer - OIDC issuer URL for cosign verify (e.g. https://accounts.google.com)"
+            echo "    --skip-verify - skip cosign signature verification of the base image"
             echo "Specifying 'localhost' for either the pull or push registry will ignore the corresponding repo option."
             exit 1
 }
@@ -126,6 +134,17 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         --no-scan)
             do_scan="false"
+            ;;
+        --cosign-identity)
+            cosign_identity="$2"
+            shift
+            ;;
+        --cosign-oidc-issuer)
+            cosign_oidc_issuer="$2"
+            shift
+            ;;
+        --skip-verify)
+            skip_verify="true"
             ;;
         -h|--help)
             usage ;;
@@ -261,6 +280,56 @@ push_container() {
   fi
 }
 
+verify_base_signature() {
+  local base_image="$1"
+
+  if [[ "$skip_verify" == "true" ]]; then
+    echo "Signature verification skipped (--skip-verify)."
+    return 0
+  fi
+
+  if ! command -v cosign &>/dev/null; then
+    echo "WARNING: cosign not found in PATH. Skipping signature verification."
+    echo "Install cosign or use --skip-verify to suppress this warning."
+    return 0
+  fi
+
+  if [[ "$pull_registry" == "localhost" ]]; then
+    echo "Base image is local — skipping signature verification."
+    return 0
+  fi
+
+  echo "Verifying cosign signature on base image: $base_image"
+
+  local verify_args=("verify")
+
+  if [[ -n "$cosign_identity" && -n "$cosign_oidc_issuer" ]]; then
+    verify_args+=("--certificate-identity" "$cosign_identity")
+    verify_args+=("--certificate-oidc-issuer" "$cosign_oidc_issuer")
+  elif [[ -n "$cosign_identity" ]]; then
+    verify_args+=("--certificate-identity-regexp" "$cosign_identity")
+  else
+    echo "WARNING: No --cosign-identity provided. Using Sigstore transparency log only."
+    verify_args+=("--certificate-identity-regexp" ".*")
+    verify_args+=("--certificate-oidc-issuer-regexp" ".*")
+  fi
+
+  verify_args+=("$base_image")
+
+  cosign "${verify_args[@]}" 2>&1
+  local rc=$?
+
+  if [[ $rc -ne 0 ]]; then
+    echo "ERROR: Cosign signature verification FAILED for $base_image"
+    echo "The base image cannot be trusted. Aborting build."
+    echo "Use --skip-verify to bypass this check (not recommended)."
+    return 1
+  fi
+
+  echo "Cosign signature verification PASSED for $base_image"
+  return 0
+}
+
 get_base_version() {
   base_version_file="../rhis-base/version.$osver.25.txt" 
   current_base_version=$(cat $base_version_file)
@@ -348,11 +417,23 @@ else
     echo "Scanning disabled (--no-scan). Skipping pre-build scan."
 fi
 
+# ── Verify base image signature ─────────────────────────────────────────
+if [[ "$pull_registry" != "localhost" && -n "$pull_registry_repo" ]]; then
+    base_image_ref="${pull_registry}/${pull_registry_repo}/rhis-base-${osver}-${ansiblever}:${base_version}"
+    verify_base_signature "$base_image_ref"
+    if [[ $? -ne 0 ]]; then
+        echo "Base image signature verification failed. Aborting build."
+        exit 4
+    fi
+else
+    echo "Building from local base image — signature verification not applicable."
+fi
+
 # ── Build ────────────────────────────────────────────────────────────────
 build_container
 if [[ $? -ne 0 ]]; then
     echo "Build failed. Version file not updated."
-    exit 4
+    exit 5
 fi
 
 # ── Registry login (before post-build so push+sign can happen in pipeline) ──
@@ -364,7 +445,7 @@ if [[ -n "$push_registry" && -n "$push_registry_repo" ]]; then
         podman login -u="$push_registry_login" -p="$push_registry_token" "$push_registry"
         if [[ $? -ne 0 ]]; then
             echo "ERROR: Registry login failed."
-            exit 5
+            exit 6
         fi
     fi
     podman tag "$image_name" "$registry_image"
@@ -381,7 +462,7 @@ if [[ "$do_scan" == "true" ]]; then
     ./scan_provisioner.sh "${scan_args[@]}"
     if [[ $? -ne 0 ]]; then
         echo "Post-build scan failed. Image built but not pushed. Version file not updated."
-        exit 6
+        exit 7
     fi
 else
     echo "Scanning disabled (--no-scan). Skipping post-build scan."
@@ -389,7 +470,7 @@ else
         push_container
         if [[ $? -ne 0 ]]; then
             echo "Push failed. Version file not updated."
-            exit 7
+            exit 8
         fi
     fi
 fi

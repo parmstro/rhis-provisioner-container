@@ -104,8 +104,9 @@
           {{ lint_result.stderr | default('') }}
 
     - name: Display lint summary
-      ansible.builtin.debug:
-        msg: |
+      ansible.builtin.pause:
+        seconds: 0
+        prompt: |
           ══════════════════════════════════════════════════════════════════════
             Pre-Build Lint Scan — rhis-provisioner
             Timestamp: {{ scan_timestamp }}

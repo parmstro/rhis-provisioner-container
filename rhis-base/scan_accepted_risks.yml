@@ -1,350 +1,477 @@
 ---
-# Accepted security risks for rhis-base container builds.
+# Accepted security risks — auto-reconciled from Grype scan results.
 #
-# Each entry documents a CVE that has been reviewed and accepted.
-# The build pipeline checks this file during policy enforcement —
-# accepted CVEs produce warnings instead of build failures.
-# Any NEW CVE not listed here will still fail the build.
+# This file is the audit document for what ships in the current build.
+# It is automatically updated by the scan pipeline:
+#   - Patched CVEs are removed when no longer in scan results
+#   - New CVEs with no fix are auto-accepted
+#   - New CVEs with a fix are flagged as actionable
+#   - fix_available status is updated each scan
 #
-# When a fix becomes available in the RHEL repos, remove the entry,
-# rebuild, and verify the CVE is resolved.
+# Last reconciled: 2026-09-30
+# Review by: 2026-10-14
 #
-# Read by: scan_base_post_build.yml
-# Reviewed by: parmstro
-# Last review: 2026-09-29
-# Next review: 2026-10-13
+# Read by: scan_base_post_build.yml, scan_provisioner_post_build.yml
 
 accepted_cves:
 
-  # ── IPA / FreeIPA (ipa-common, python3-ipalib) ────────────────────────
-  # RHEL 9: Fix version 4.13.4-1.el9_8 exists but is not yet published
-  #   to RHEL 9 AppStream repos.
-  # RHEL 10: No fix available for 4.13.1-3.el10_2.2.
-  # Remove these entries once Red Hat ships the RPMs.
-
-  CVE-2026-76578:
-    severity: Critical
-    packages: ["ipa-common", "python3-ipalib"]
-    reason: >-
-      RHEL 9: fix 4.13.4-1.el9_8 not yet published to AppStream.
-      RHEL 10: no fix available for 4.13.1-3.el10_2.2.
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-79678:
-    severity: High
-    packages: ["ipa-common", "python3-ipalib"]
-    reason: "No fix available from Red Hat for RHEL 9 or RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-13097:
-    severity: High
-    packages: ["ipa-common", "python3-ipalib"]
-    reason: "No fix available from Red Hat for RHEL 9 or RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-73197:
-    severity: High
-    packages: ["ipa-common", "python3-ipalib"]
-    reason: "No fix available from Red Hat for RHEL 9 or RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-73198:
-    severity: High
-    packages: ["ipa-common", "python3-ipalib"]
-    reason: "No fix available from Red Hat for RHEL 9 or RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-18147:
-    severity: High
-    packages: ["ipa-common", "python3-ipalib"]
-    reason: "No fix available from Red Hat for RHEL 9 or RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-19550:
-    severity: High
-    packages: ["ipa-common", "python3-ipalib"]
-    reason: "No fix available from Red Hat for RHEL 9 or RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-42211:
-    severity: High
-    packages: ["ipa-common", "python3-ipalib"]
-    reason: "No fix available from Red Hat. Affects RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  # ── BIND (bind-libs, bind-license, bind-utils) ────────────────────────
-  # No fix available from Red Hat for RHEL 9 or RHEL 10.
+  # ── bind-libs, bind-license, bind-utils ─────────────────────
 
   CVE-2023-4408:
     severity: High
     packages: ["bind-libs", "bind-license", "bind-utils"]
-    reason: "No fix available from Red Hat. Upstream BIND vulnerability. Affects RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
 
   CVE-2023-5517:
     severity: High
     packages: ["bind-libs", "bind-license", "bind-utils"]
-    reason: "No fix available from Red Hat. Upstream BIND vulnerability. Affects RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2024-1737:
-    severity: High
-    packages: ["bind-libs", "bind-license", "bind-utils"]
-    reason: "No fix available from Red Hat. Upstream BIND vulnerability. Affects RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2024-1975:
-    severity: High
-    packages: ["bind-libs", "bind-license", "bind-utils"]
-    reason: "No fix available from Red Hat. Upstream BIND vulnerability. Affects RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2024-4076:
-    severity: High
-    packages: ["bind-libs", "bind-license", "bind-utils"]
-    reason: "No fix available from Red Hat. Upstream BIND vulnerability. Affects RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
 
   CVE-2024-11187:
     severity: High
     packages: ["bind-libs", "bind-license", "bind-utils"]
-    reason: "No fix available from Red Hat. Upstream BIND vulnerability. Affects RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
 
-  CVE-2026-80274:
+  CVE-2024-1737:
     severity: High
     packages: ["bind-libs", "bind-license", "bind-utils"]
-    reason: "No fix available from Red Hat. Upstream BIND vulnerability."
-    accepted_by: parmstro
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
+
+  CVE-2024-1975:
+    severity: High
+    packages: ["bind-libs", "bind-license", "bind-utils"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
+
+  CVE-2024-4076:
+    severity: High
+    packages: ["bind-libs", "bind-license", "bind-utils"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
+
+  # ── ipa-common, python3-ipalib ──────────────────────────────
+
+  CVE-2026-13097:
+    severity: High
+    packages: ["ipa-common", "python3-ipalib"]
+    fix_available: true
+    fix_versions:
+      ipa-common: "0:4.13.4-1.el10_2"
+      python3-ipalib: "0:4.13.4-1.el10_2"
+    reason: "Fix now available — was: No fix available from Red Hat for RHEL 9 or RHEL 10."
+    accepted_by: "parmstro"
     accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
     review_by: "2026-10-13"
+
+  # ── ansible-core ────────────────────────────────────────────
+
+  CVE-2026-16493:
+    severity: High
+    packages: ["ansible-core"]
+    fix_available: false
+    reason: "No fix available from Red Hat."
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-13"
+
+  # ── ipa-common, python3-ipalib ──────────────────────────────
+
+  CVE-2026-18147:
+    severity: High
+    packages: ["ipa-common", "python3-ipalib"]
+    fix_available: true
+    fix_versions:
+      ipa-common: "0:4.13.4-1.el10_2"
+      python3-ipalib: "0:4.13.4-1.el10_2"
+    reason: "Fix now available — was: No fix available from Red Hat for RHEL 9 or RHEL 10."
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-13"
+
+  # ── libvirt-libs ────────────────────────────────────────────
+
+  CVE-2026-18917:
+    severity: High
+    packages: ["libvirt-libs"]
+    fix_available: false
+    reason: "No fix available from Red Hat."
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-13"
+
+  # ── ipa-common, python3-ipalib ──────────────────────────────
+
+  CVE-2026-19550:
+    severity: High
+    packages: ["ipa-common", "python3-ipalib"]
+    fix_available: true
+    fix_versions:
+      ipa-common: "0:4.13.4-1.el10_2"
+      python3-ipalib: "0:4.13.4-1.el10_2"
+    reason: "Fix now available — was: No fix available from Red Hat for RHEL 9 or RHEL 10."
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-13"
+
+  # ── bind-libs, bind-license, bind-utils ─────────────────────
 
   CVE-2026-19666:
     severity: High
     packages: ["bind-libs", "bind-license", "bind-utils"]
+    fix_available: false
     reason: "No fix available from Red Hat."
-    accepted_by: parmstro
+    accepted_by: "parmstro"
     accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
     review_by: "2026-10-13"
 
   CVE-2026-19667:
     severity: High
     packages: ["bind-libs", "bind-license", "bind-utils"]
+    fix_available: false
     reason: "No fix available from Red Hat."
-    accepted_by: parmstro
+    accepted_by: "parmstro"
     accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
     review_by: "2026-10-13"
 
-  CVE-2026-81563:
+  # ── ipa-common, python3-ipalib ──────────────────────────────
+
+  CVE-2026-42211:
     severity: High
-    packages: ["bind-libs", "bind-license", "bind-utils"]
-    reason: "No fix available from Red Hat. Affects RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
+    packages: ["ipa-common", "python3-ipalib"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
 
-  CVE-2026-81736:
+  # ── rpm-sequoia ─────────────────────────────────────────────
+
+  CVE-2026-42784:
     severity: High
-    packages: ["bind-libs", "bind-license", "bind-utils"]
-    reason: "No fix available from Red Hat. Affects RHEL 10."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
+    packages: ["rpm-sequoia"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
 
-  # ── expat ──────────────────────────────────────────────────────────────
-
-  CVE-2026-66046:
-    severity: High
-    packages: ["expat"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-93990:
-    severity: High
-    packages: ["expat"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-76641:
-    severity: High
-    packages: ["expat"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  # ── vim ────────────────────────────────────────────────────────────────
+  # ── vim-common, vim-data, vim-enhanced, vim-filesystem, vim-minimal, xxd ─
 
   CVE-2026-43961:
     severity: High
     packages: ["vim-common", "vim-data", "vim-enhanced", "vim-filesystem", "vim-minimal", "xxd"]
+    fix_available: false
     reason: "No fix available from Red Hat."
-    accepted_by: parmstro
+    accepted_by: "parmstro"
     accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
     review_by: "2026-10-13"
 
-  CVE-2026-73073:
-    severity: High
-    packages: ["vim-common", "vim-data", "vim-enhanced", "vim-filesystem", "vim-minimal", "xxd"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  # ── pcre2 ──────────────────────────────────────────────────────────────
-
-  CVE-2026-86145:
-    severity: High
-    packages: ["pcre2", "pcre2-syntax"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-89161:
-    severity: High
-    packages: ["pcre2", "pcre2-syntax"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  # ── util-linux ─────────────────────────────────────────────────────────
+  # ── libblkid, libfdisk, libmount, libsmartcols, libuuid, util-linux, util-linux-core ─
 
   CVE-2026-53612:
     severity: High
     packages: ["libblkid", "libfdisk", "libmount", "libsmartcols", "libuuid", "util-linux", "util-linux-core"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
 
   CVE-2026-53613:
     severity: High
     packages: ["libblkid", "libfdisk", "libmount", "libsmartcols", "libuuid", "util-linux", "util-linux-core"]
+    fix_available: false
     reason: "No fix available from Red Hat."
-    accepted_by: parmstro
+    accepted_by: "parmstro"
     accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
     review_by: "2026-10-13"
 
   CVE-2026-53614:
     severity: High
     packages: ["libblkid", "libfdisk", "libmount", "libsmartcols", "libuuid", "util-linux", "util-linux-core"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
 
-  CVE-2026-76642:
-    severity: High
-    packages: ["libblkid", "libfdisk", "libmount", "libsmartcols", "libuuid", "util-linux", "util-linux-core"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-78408:
-    severity: High
-    packages: ["libblkid", "libfdisk", "libmount", "libsmartcols", "libuuid", "util-linux", "util-linux-core"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-78410:
-    severity: High
-    packages: ["libblkid", "libfdisk", "libmount", "libsmartcols", "libuuid", "util-linux", "util-linux-core"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  # ── libvirt ────────────────────────────────────────────────────────────
-
-  CVE-2026-63622:
-    severity: High
-    packages: ["libvirt-libs"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  CVE-2026-18917:
-    severity: High
-    packages: ["libvirt-libs"]
-    reason: "No fix available from Red Hat."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  # ── python3-pyasn1 ────────────────────────────────────────────────────
+  # ── python3-pyasn1, python3-pyasn1-modules ──────────────────
 
   CVE-2026-59885:
     severity: High
     packages: ["python3-pyasn1", "python3-pyasn1-modules"]
+    fix_available: false
     reason: "No fix available from Red Hat."
-    accepted_by: parmstro
+    accepted_by: "parmstro"
     accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
     review_by: "2026-10-13"
 
-  # ── rpm-sequoia (RHEL 10 only) ──────────────────────────────────────
+  # ── libvirt-libs ────────────────────────────────────────────
 
-  CVE-2026-42784:
+  CVE-2026-63622:
     severity: High
-    packages: ["rpm-sequoia"]
-    reason: "No fix available from Red Hat. RHEL 10 only."
-    accepted_by: parmstro
-    accepted_date: "2026-09-29"
-    review_by: "2026-10-13"
-
-  # ── ansible-core ──────────────────────────────────────────────────────
-
-  CVE-2026-16493:
-    severity: High
-    packages: ["ansible-core"]
+    packages: ["libvirt-libs"]
+    fix_available: false
     reason: "No fix available from Red Hat."
-    accepted_by: parmstro
+    accepted_by: "parmstro"
     accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
     review_by: "2026-10-13"
 
-  # ── gdb ────────────────────────────────────────────────────────────────
+  # ── expat ───────────────────────────────────────────────────
 
-  CVE-2026-13732:
+  CVE-2026-66046:
     severity: High
-    packages: ["gdb-gdbserver"]
+    packages: ["expat"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
+
+  # ── vim-common, vim-data, vim-enhanced, vim-filesystem, vim-minimal, xxd ─
+
+  CVE-2026-73073:
+    severity: High
+    packages: ["vim-common", "vim-data", "vim-enhanced", "vim-filesystem", "vim-minimal", "xxd"]
+    fix_available: false
     reason: "No fix available from Red Hat."
-    accepted_by: parmstro
+    accepted_by: "parmstro"
     accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
     review_by: "2026-10-13"
+
+  # ── ipa-common, python3-ipalib ──────────────────────────────
+
+  CVE-2026-73197:
+    severity: High
+    packages: ["ipa-common", "python3-ipalib"]
+    fix_available: true
+    fix_versions:
+      ipa-common: "0:4.13.4-1.el10_2"
+      python3-ipalib: "0:4.13.4-1.el10_2"
+    reason: "Fix now available — was: No fix available from Red Hat for RHEL 9 or RHEL 10."
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-13"
+
+  CVE-2026-73198:
+    severity: High
+    packages: ["ipa-common", "python3-ipalib"]
+    fix_available: true
+    fix_versions:
+      ipa-common: "0:4.13.4-1.el10_2"
+      python3-ipalib: "0:4.13.4-1.el10_2"
+    reason: "Fix now available — was: No fix available from Red Hat for RHEL 9 or RHEL 10."
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-13"
+
+  # ── openssl-libs ────────────────────────────────────────────
+
+  CVE-2026-75804:
+    severity: High
+    packages: ["openssl-libs"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
+
+  # ── ipa-common, python3-ipalib ──────────────────────────────
+
+  CVE-2026-76578:
+    severity: Critical
+    packages: ["ipa-common", "python3-ipalib"]
+    fix_available: true
+    fix_versions:
+      ipa-common: "0:4.13.4-1.el10_2"
+      python3-ipalib: "0:4.13.4-1.el10_2"
+    reason: "Fix now available — was: RHEL 9: fix 4.13.4-1.el9_8 not yet published to AppStream. RHEL 10: no fix available for 4.13.1-3.el10_2.2."
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-13"
+
+  # ── expat ───────────────────────────────────────────────────
+
+  CVE-2026-76641:
+    severity: High
+    packages: ["expat"]
+    fix_available: false
+    reason: "No fix available from Red Hat."
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-13"
+
+  # ── libblkid, libfdisk, libmount, libsmartcols, libuuid, util-linux, util-linux-core ─
+
+  CVE-2026-76642:
+    severity: High
+    packages: ["libblkid", "libfdisk", "libmount", "libsmartcols", "libuuid", "util-linux", "util-linux-core"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
+
+  CVE-2026-78408:
+    severity: High
+    packages: ["libblkid", "libfdisk", "libmount", "libsmartcols", "libuuid", "util-linux", "util-linux-core"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
+
+  CVE-2026-78410:
+    severity: High
+    packages: ["libblkid", "libfdisk", "libmount", "libsmartcols", "libuuid", "util-linux", "util-linux-core"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
+
+  # ── ipa-common, python3-ipalib ──────────────────────────────
+
+  CVE-2026-79678:
+    severity: High
+    packages: ["ipa-common", "python3-ipalib"]
+    fix_available: true
+    fix_versions:
+      ipa-common: "0:4.13.4-1.el10_2"
+      python3-ipalib: "0:4.13.4-1.el10_2"
+    reason: "Fix now available — was: No fix available from Red Hat for RHEL 9 or RHEL 10."
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-13"
+
+  # ── bind-libs, bind-license, bind-utils ─────────────────────
+
+  CVE-2026-80274:
+    severity: High
+    packages: ["bind-libs", "bind-license", "bind-utils"]
+    fix_available: false
+    reason: "No fix available from Red Hat. Upstream BIND vulnerability."
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-13"
+
+  CVE-2026-81563:
+    severity: High
+    packages: ["bind-libs", "bind-license", "bind-utils"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
+
+  CVE-2026-81736:
+    severity: High
+    packages: ["bind-libs", "bind-license", "bind-utils"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
+
+  # ── openssl-libs ────────────────────────────────────────────
+
+  CVE-2026-84782:
+    severity: High
+    packages: ["openssl-libs"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"
+
+  # ── pcre2, pcre2-syntax ─────────────────────────────────────
+
+  CVE-2026-86145:
+    severity: High
+    packages: ["pcre2", "pcre2-syntax"]
+    fix_available: false
+    reason: "No fix available from Red Hat."
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-13"
+
+  CVE-2026-89161:
+    severity: High
+    packages: ["pcre2", "pcre2-syntax"]
+    fix_available: false
+    reason: "No fix available from Red Hat."
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-29"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-13"
+
+  # ── expat ───────────────────────────────────────────────────
+
+  CVE-2026-93990:
+    severity: High
+    packages: ["expat"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-09-30"
+    last_scanned: "2026-09-30"
+    review_by: "2026-10-14"

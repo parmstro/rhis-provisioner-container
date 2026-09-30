@@ -14,6 +14,11 @@ push_registry_repo="parmstro"
 push_registry_login=""
 push_registry_token=""
 
+# Source local config if present (not committed to git)
+if [[ -f "../build.local.conf" ]]; then
+    source "../build.local.conf"
+fi
+
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
         -a|--ansible-ver)
@@ -85,6 +90,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 stage_sources() {
+  mkdir -p sources
   rm -f sources/*
   cp $ansiblecfg sources/ansible.cfg
   cp ansible.cfg.clean sources/ansible.cfg.clean

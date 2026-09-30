@@ -31,6 +31,11 @@ cosign_identity=""
 cosign_oidc_issuer=""
 skip_verify="false"
 
+# Source local config if present (not committed to git)
+if [[ -f "../build.local.conf" ]]; then
+    source "../build.local.conf"
+fi
+
 usage() {
             echo "Usage: rhis_build_provisioner.sh [options]"
             echo "Options:"
@@ -282,24 +287,39 @@ push_container() {
 
 verify_base_signature() {
   local base_image="$1"
+  local verify_log="${reports_dir}/cosign-verify-base.log"
+  local verify_timestamp
+  verify_timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+  mkdir -p "$reports_dir"
 
   if [[ "$skip_verify" == "true" ]]; then
-    echo "Signature verification skipped (--skip-verify)."
+    echo "[$verify_timestamp] Base image signature verification: SKIPPED (--skip-verify)" | tee -a "$verify_log"
     return 0
   fi
 
   if ! command -v cosign &>/dev/null; then
-    echo "WARNING: cosign not found in PATH. Skipping signature verification."
-    echo "Install cosign or use --skip-verify to suppress this warning."
+    echo "[$verify_timestamp] Base image signature verification: SKIPPED (cosign not in PATH)" | tee -a "$verify_log"
+    echo "WARNING: Install cosign or use --skip-verify to suppress this warning."
     return 0
   fi
 
   if [[ "$pull_registry" == "localhost" ]]; then
-    echo "Base image is local — skipping signature verification."
+    echo "[$verify_timestamp] Base image signature verification: SKIPPED (local build)" | tee -a "$verify_log"
     return 0
   fi
 
-  echo "Verifying cosign signature on base image: $base_image"
+  {
+    echo "═══════════════════════════════════════════════════════════════"
+    echo "  Base Image Signature Verification"
+    echo "═══════════════════════════════════════════════════════════════"
+    echo "  Timestamp:  $verify_timestamp"
+    echo "  Image:      $base_image"
+    echo "  Identity:   ${cosign_identity:-'(any)'}"
+    echo "  Issuer:     ${cosign_oidc_issuer:-'(any)'}"
+    echo "  Cosign:     $(cosign version 2>/dev/null | grep -oP 'GitVersion:\s+\K\S+' || echo 'unknown')"
+    echo "═══════════════════════════════════════════════════════════════"
+  } | tee -a "$verify_log"
 
   local verify_args=("verify")
 
@@ -309,23 +329,32 @@ verify_base_signature() {
   elif [[ -n "$cosign_identity" ]]; then
     verify_args+=("--certificate-identity-regexp" "$cosign_identity")
   else
-    echo "WARNING: No --cosign-identity provided. Using Sigstore transparency log only."
+    echo "WARNING: No --cosign-identity provided. Using Sigstore transparency log only." | tee -a "$verify_log"
     verify_args+=("--certificate-identity-regexp" ".*")
     verify_args+=("--certificate-oidc-issuer-regexp" ".*")
   fi
 
   verify_args+=("$base_image")
 
-  cosign "${verify_args[@]}" 2>&1
+  local verify_output
+  verify_output=$(cosign "${verify_args[@]}" 2>&1)
   local rc=$?
 
+  echo "$verify_output" >> "$verify_log"
+
   if [[ $rc -ne 0 ]]; then
+    echo "" | tee -a "$verify_log"
+    echo "  Result:     FAILED" | tee -a "$verify_log"
+    echo "═══════════════════════════════════════════════════════════════" | tee -a "$verify_log"
     echo "ERROR: Cosign signature verification FAILED for $base_image"
     echo "The base image cannot be trusted. Aborting build."
     echo "Use --skip-verify to bypass this check (not recommended)."
     return 1
   fi
 
+  echo "" | tee -a "$verify_log"
+  echo "  Result:     PASSED" | tee -a "$verify_log"
+  echo "═══════════════════════════════════════════════════════════════" | tee -a "$verify_log"
   echo "Cosign signature verification PASSED for $base_image"
   return 0
 }

@@ -26,6 +26,15 @@ Then go get the sample configuration from [rhis-builder-inventory](https://githu
 
 If you want to contribute to the container or extend it for your own projects, read on.
 
+### Security Scanning and Signing
+
+The build pipeline includes integrated security scanning, CVE risk management, and container signing. See [SECURITY_SCANNING.md](SECURITY_SCANNING.md) for the full design, including:
+
+- Pre/post-build scanning (Trivy, Grype, Syft, ansible-lint, KICS)
+- Automatic CVE accepted risk reconciliation
+- Cosign keyless signing and signature verification
+- SBOM generation and attestation
+
 ### Building the containers.
 
 If you are here, you care about developing and extending rhis-builder bits.

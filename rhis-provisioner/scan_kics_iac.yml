@@ -235,8 +235,9 @@
     # ── Report ───────────────────────────────────────────────────────────
 
     - name: Display KICS scan summary
-      ansible.builtin.debug:
-        msg: |
+      ansible.builtin.pause:
+        seconds: 0
+        prompt: |
           ══════════════════════════════════════════════════════════════════════
             KICS IaC Security Scan
             Image:     {{ image_name }}

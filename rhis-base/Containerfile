@@ -2,7 +2,7 @@ ARG OS_VER
 ARG ANSIBLE_VER
 ARG RHIS_VER
 
-FROM registry.redhat.io/ubi9:latest
+FROM registry.redhat.io/ubi${OS_VER}:latest
 MAINTAINER parmstro@redhat.com
 LABEL maintainer="Paul Armstrong <github:@parmstro>"
 LABEL contributors="Paul Armstrong <github:@parmstro>, Mike Savage <github:@heatmiser>, Charles Shaw <github: @shawkingly>" 
@@ -38,18 +38,10 @@ RUN /usr/bin/python3 -m pip install -r /rhis/requirements.txt
 RUN mkdir -p /etc/ansible
 COPY sources/ansible.cfg /etc/ansible/ansible.cfg
 
-# Manage ansible.controller based on AAP target
-RUN if [[ $ANSIBLE_VERSION == "2.5" ]]; then \
-    echo "Installing ansible.controller collection for AAP 2.5"; \
-    ansible-galaxy collection install ansible.controller:">4.7"; \
-    else \
-    echo "Installing ansible.controller collection for AAP 2.4"; \
-    ansible-galaxy collection install ansible.controller:"<4.6"; \
-    fi
-
 # install the remaining non-ansible-version dependent collections
 COPY sources/requirements.yml /tmp/requirements.yml
 RUN ansible-galaxy collection install -r /tmp/requirements.yml
+# RUN ansible-galaxy collection install ansible.controller
 # RUN ansible-galaxy collection install ansible.posix
 # RUN ansible-galaxy collection install azure.azcollection
 # RUN ansible-galaxy collection install community.aws
@@ -62,10 +54,6 @@ RUN ansible-galaxy collection install -r /tmp/requirements.yml
 # RUN ansible-galaxy collection install redhat.satellite
 # RUN ansible-galaxy collection install redhat.satellite_operations
 # RUN ansible-galaxy collection install vmware.vmware
-
-# For optimized build
-# This runs long and can fail in the middle 
-# RUN ansible-galaxy collection install -r /rhis/requirements.yml
 
 # Cleanup the ansible configuration
 COPY sources/ansible.cfg.clean /etc/ansible/ansible.cfg

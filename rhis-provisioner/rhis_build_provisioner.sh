@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# default to AAP 2.4
-ansiblever="2.4"
+# default to AAP 2.5
+ansiblever="2.5"
+osver="9"
 # Inuit word for packed snow used for building :-)
 build="aniyu"
-version_file="./version24.txt"
+version_file="./version.9.25.txt"
 version_mode="revision"
-base_version_file="../rhis-base/version24.txt" 
+base_version_file="../rhis-base/version.9.25.txt" 
 rhis_schema_version_file="rhis-schema-version.txt"
 
 branch="main"
@@ -29,7 +30,8 @@ usage() {
             echo "Usage: rhis_build_provisioner.sh [options]"
             echo "Options:"
             echo "    --no-cache - rebuild container from scratch"
-            echo "    --ansible-ver - specify the AAP API version - one of '2.4' (default) or '2.5'"
+            echo "    --ansible-ver - NO LONGER SUPPORTED. All builds are for AAP API 2.5 or greater."
+            echo "    --os-ver - specify the OS version - one of '9' (default), or '10'"
             echo "    --branch - git branch to clone for all rhis-builder repos (default: main)"
             echo "               individual repos can be pinned via 'version:' in configure_rhis_builder.yml"
             echo "    --devel - tag the image as :devel instead of :latest; skips registry push (local only)"
@@ -58,7 +60,11 @@ usage() {
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
         -a|--ansible-ver)
-            ansiblever="$2"
+            echo "    --ansible-ver - NO LONGER SUPPORTED. All builds are for AAP API 2.5 or greater."
+            exit 1
+            ;;
+        -o|--os-ver)
+            osver="$2"
             shift
             ;;
         -b|--branch)
@@ -186,15 +192,9 @@ build_container() {
   cp README.md sources/README.md
   # cp ipareplica_test_patch.py sources/ipareplica_test_patch.py
   
-  if [[ $ansiblever == "2.5" ]]; then
-    cp deploy_aap_hosts.sh sources/deploy_aap_hosts.sh
-    cp build_aap_controller.sh sources/build_aap_controller.sh
-    cp build_aap_standalone_hub.sh sources/build_aap_standalone_hub.sh
-  else
-    cp deploy_aap24_hosts.sh sources/deploy_aap_hosts.sh
-    cp build_aap24_controller.sh sources/build_aap_controller.sh
-    cp build_aap24_hub.sh sources/build_aap_standalone_hub.sh
-  fi
+  cp deploy_aap_hosts.sh sources/deploy_aap_hosts.sh
+  cp build_aap_controller.sh sources/build_aap_controller.sh
+  cp build_aap_standalone_hub.sh sources/build_aap_standalone_hub.sh
   
   echo
   echo "Running 'podman build' with the following parameters:"
@@ -204,29 +204,25 @@ build_container() {
   echo "no-cache: $nocache"
   echo
 
-  if [[ $ansiblever == "2.5" ]]; then
-    buildargs="--build-arg ANSIBLE_VER=2.5 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg RHIS_BUILD=$build --build-arg PULL_PATH=$pull_path --build-arg BRANCH=$branch"
-  else
-    buildargs="--build-arg ANSIBLE_VER=2.4 --build-arg OS_VER=9 --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg RHIS_BUILD=$build --build-arg PULL_PATH=$pull_path --build-arg BRANCH=$branch"
-  fi
-
+  buildargs="--build-arg ANSIBLE_VER=2.5 --build-arg OS_VER=$osver --build-arg RHIS_BASE_VER=$base_version --build-arg RHIS_VER=$version --build-arg RHIS_SCHEMA_VER=$schema_version --build-arg RHIS_BUILD=$build --build-arg PULL_PATH=$pull_path --build-arg BRANCH=$branch"
+  
   if [[ $nocache == "true" ]]; then
     buildargs+=" --no-cache"
   fi
 
   echo $buildargs
 
-  podman build $buildargs -t rhis-provisioner-9-$ansiblever:$version .
-  podman tag localhost/rhis-provisioner-9-$ansiblever:$version rhis-provisioner-9-$ansiblever:$tag
+  podman build $buildargs -t rhis-provisioner-$osver-$ansiblever:$version .
+  podman tag localhost/rhis-provisioner-$osver-$ansiblever:$version rhis-provisioner-$osver-$ansiblever:$tag
 
   if [[ $tag == "devel" ]]; then
-    echo "Devel build — skipping registry push. Image tagged locally as rhis-provisioner-9-$ansiblever:devel"
+    echo "Devel build — skipping registry push. Image tagged locally as rhis-provisioner-$osver-$ansiblever:devel"
   elif [[ $push_registry && $push_registry_login && $push_registry_token ]]; then
     podman login -u=$push_registry_login -p=$push_registry_token $push_registry
-    podman tag localhost/rhis-provisioner-9-$ansiblever:$version $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:$version
-    podman tag localhost/rhis-provisioner-9-$ansiblever:$version $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:$tag
-    podman push $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:$version
-    podman push $push_registry/$push_registry_repo/rhis-provisioner-9-$ansiblever:$tag
+    podman tag localhost/rhis-provisioner-$osver-$ansiblever:$version $push_registry/$push_registry_repo/rhis-provisioner-$osver-$ansiblever:$version
+    podman tag localhost/rhis-provisioner-$osver-$ansiblever:$version $push_registry/$push_registry_repo/rhis-provisioner-$osver-$ansiblever:$tag
+    podman push $push_registry/$push_registry_repo/rhis-provisioner-$osver-$ansiblever:$version
+    podman push $push_registry/$push_registry_repo/rhis-provisioner-$osver-$ansiblever:$tag
   fi
 
   echo "Clean sources directory"
@@ -234,40 +230,24 @@ build_container() {
 }
 
 get_base_version() {
-  if [[ $ansiblever == "2.5" ]]; then
-    base_version_file="../rhis-base/version25.txt" 
-  else
-    base_version_file="../rhis-base/version24.txt" 
-  fi
+  base_version_file="../rhis-base/version.$osver.25.txt" 
   current_base_version=$(cat $base_version_file)
   echo "${current_base_version}"
 }
 
 get_base_version_file() {
-  if [[ $ansiblever == "2.5" ]]; then
-    base_version_file="../rhis-base/version25.txt" 
-  else
-    base_version_file="../rhis-base/version24.txt" 
-  fi
+  base_version_file="../rhis-base/version.$osver.25.txt" 
   echo "${base_version_file}"
 }
 
 get_rhis_version() {
-  if [[ $ansiblever == "2.5" ]]; then
-    rhis_version_file="./version25.txt" 
-  else
-    rhis_version_file="./version24.txt" 
-  fi
+  rhis_version_file="./version.$osver.25.txt" 
   current_version=$(cat $rhis_version_file)
   echo "${current_version}"
 }
 
 get_rhis_version_file() {
-  if [[ $ansiblever == "2.5" ]]; then
-    rhis_version_file="./version25.txt" 
-  else
-    rhis_version_file="./version24.txt" 
-  fi
+  rhis_version_file="./version.$osver.25.txt" 
   echo "${rhis_version_file}"
 }
 
@@ -305,6 +285,16 @@ update_version() {
   echo $version > $(get_rhis_version_file)
 }
 
+if [[ $ansiblever != "2.5" ]]; then
+  echo "ERROR: Invalid ansible version. ONLY AAP API 2.5 builds are supported for the container."
+  exit 1
+fi
+
+if [[ $osver != "9" && $osver != "10" ]]; then
+  echo "ERROR: Invalid operating system version. Only RHEL '9' or '10' builds are supported for the container."
+  exit 2
+fi
+
 base_version=$(get_base_version)
 version=$(increment_version "$version_mode")
 build=$(cat ../build.txt)
@@ -315,7 +305,7 @@ build_container
 # Check the exit status of the main commands
 if [[ $? -eq 0 ]]; then
     # If build was successful, increment the revision
-    echo "Successfully built $version - Updating version file."
+    echo "Successfully built $version for operating system $osver - Updating version file."
     update_version
 else
     echo "One or more build commands failed. Version file not updated."

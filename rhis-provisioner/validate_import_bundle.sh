@@ -22,7 +22,7 @@
 #           host_vars/satellite1/
 #             content_imports.yml
 #           files/
-#             *.zip                ← subscription manifests
+#             *.zip                ← subscription manifests + discovery facts
 #       containers/
 #     satellite/
 #       ansible_roles/
@@ -156,15 +156,31 @@ else
 fi
 
 # ── Subscription manifests (inside provisioner inventory) ──────────────────────
-MANIFEST_COUNT=$(find "$DRIVE_MOUNT/provisioner/inventory" \
-    -path "*/files/*.zip" 2>/dev/null | wc -l)
-if [[ "$MANIFEST_COUNT" -gt 0 ]]; then
-    check PASS "Subscription manifest(s): $MANIFEST_COUNT zip file(s) found in provisioner/inventory/"
-    find "$DRIVE_MOUNT/provisioner/inventory" -path "*/files/*.zip" | while read -r f; do
+# Satellite manifest zips contain consumer_export.zip; other zips (e.g.
+# Foreman discovery custom facts) do not and must not be counted as manifests.
+ZIP_COUNT=0
+MANIFEST_ZIPS=()
+while IFS= read -r zipfile; do
+    [[ -z "$zipfile" ]] && continue
+    ((ZIP_COUNT++))
+    if unzip -l "$zipfile" 2>/dev/null | grep -q "consumer_export.zip"; then
+        MANIFEST_ZIPS+=("$zipfile")
+    fi
+done < <(find "$DRIVE_MOUNT/provisioner/inventory" -path "*/files/*.zip" 2>/dev/null)
+
+if [[ "${#MANIFEST_ZIPS[@]}" -gt 0 ]]; then
+    check PASS "Subscription manifest(s): ${#MANIFEST_ZIPS[@]} found in provisioner/inventory/"
+    for f in "${MANIFEST_ZIPS[@]}"; do
         check INFO "  $(basename "$f")"
     done
+elif [[ "$ZIP_COUNT" -gt 0 ]]; then
+    check WARN "$ZIP_COUNT zip file(s) found in provisioner/inventory/ but none are Satellite subscription manifests"
+    check WARN "The highside administrator must provide a subscription manifest or Satellite deployment will fail"
+    check WARN "Download from https://access.redhat.com/management and place in the highside deployment files/ directory"
 else
-    check WARN "No subscription manifest zips found in provisioner/inventory/ — highside satellite will need one"
+    check WARN "No subscription manifest found in provisioner/inventory/"
+    check WARN "The highside administrator must provide a subscription manifest or Satellite deployment will fail"
+    check WARN "Download from https://access.redhat.com/management and place in the highside deployment files/ directory"
 fi
 
 # ── Bundle artifacts ───────────────────────────────────────────────────────────

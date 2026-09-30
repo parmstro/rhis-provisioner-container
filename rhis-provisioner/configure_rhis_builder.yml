@@ -17,64 +17,83 @@
     project_list:
       - name: "rhis-builder-idm"
         repo: "https://github.com/parmstro/rhis-builder-idm.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-satellite"
         repo: "https://github.com/parmstro/rhis-builder-satellite.git"
-        version: "feat/bootstrap-init-migration"
+        version: "main"
         purge: true
       - name: "rhis-builder-pipelines"
         repo: "https://github.com/parmstro/rhis-builder-pipelines.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-aap"
         repo: "https://github.com/parmstro/rhis-builder-aap.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-day-2-ops"
         repo: "https://github.com/parmstro/rhis-builder-day-2-ops.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-nbde"
         repo: "https://github.com/parmstro/rhis-builder-nbde.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-imagebuilder"
         repo: "https://github.com/parmstro/rhis-builder-imagebuilder.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-yubi"
         repo: "https://github.com/parmstro/rhis-builder-yubi.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-convert2rhel"
         repo: "https://github.com/parmstro/rhis-builder-convert2rhel.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-ansible-ee"
         repo: "https://github.com/parmstro/rhis-builder-ansible-ee.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-quadlet-deploy"
         repo: "https://github.com/parmstro/rhis-builder-quadlet-deploy.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-kvm"
         repo: "https://github.com/parmstro/rhis-builder-kvm.git"
+        version: "feature/kvm-iscsi-lvmlock"
         purge: true
       - name: "rhis-builder-bootstrap-init"
         repo: "https://github.com/parmstro/rhis-builder-bootstrap-init.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-aws-lz"
         repo: "https://github.com/parmstro/rhis-builder-aws-lz.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-azure-lz"
         repo: "https://github.com/parmstro/rhis-builder-azure-lz.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-keycloak"
         repo: "https://github.com/parmstro/rhis-builder-keycloak.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-kvm-lz"
         repo: "https://github.com/parmstro/rhis-builder-kvm-lz.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-ocp-certs"
         repo: "https://github.com/parmstro/rhis-builder-ocp-certs.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-ocp-upi"
         repo: "https://github.com/parmstro/rhis-builder-ocp-upi.git"
+        version: "main"
         purge: true
       - name: "rhis-builder-quay"
         repo: "https://github.com/parmstro/rhis-builder-quay.git"
+        version: "main"
         purge: true
 
   tasks:

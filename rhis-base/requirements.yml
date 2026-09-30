@@ -5,8 +5,12 @@
 
 # these collections are compatible with ansible core 2.14.18 shipping with rhel 9.7
 collections:
+  - name: "ansible.controller"
+    version: ">4.7"
   - name: "ansible.utils"
     version: "<6.0.0"
+  - name: "ansible.platform"
+    version: ">2.7.20260812"   # tested with rhis-provisioner-9.25:1.130 on rhis-base 1.16
   - name: "ansible.posix"
     version: "<1.6.0"
   - name: "ansible.netcommon"

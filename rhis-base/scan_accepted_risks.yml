@@ -8,8 +8,8 @@
 #   - New CVEs with a fix are flagged as actionable
 #   - fix_available status is updated each scan
 #
-# Last reconciled: 2026-09-30
-# Review by: 2026-10-14
+# Last reconciled: 2026-10-02
+# Review by: 2026-10-16
 #
 # Read by: scan_base_post_build.yml, scan_provisioner_post_build.yml
 
@@ -23,9 +23,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   CVE-2023-5517:
     severity: High
@@ -33,9 +33,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   CVE-2024-11187:
     severity: High
@@ -43,9 +43,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   CVE-2024-1737:
     severity: High
@@ -53,9 +53,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   CVE-2024-1975:
     severity: High
@@ -63,9 +63,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   CVE-2024-4076:
     severity: High
@@ -73,9 +73,21 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
+
+  # ── pcre2, pcre2-syntax ─────────────────────────────────────
+
+  CVE-2026-103111:
+    severity: High
+    packages: ["pcre2", "pcre2-syntax"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   # ── ipa-common, python3-ipalib ──────────────────────────────
 
@@ -89,7 +101,7 @@ accepted_cves:
     reason: "Fix now available — was: No fix available from Red Hat for RHEL 9 or RHEL 10."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   # ── ansible-core ────────────────────────────────────────────
@@ -101,7 +113,7 @@ accepted_cves:
     reason: "No fix available from Red Hat."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   # ── ipa-common, python3-ipalib ──────────────────────────────
@@ -116,7 +128,7 @@ accepted_cves:
     reason: "Fix now available — was: No fix available from Red Hat for RHEL 9 or RHEL 10."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   # ── libvirt-libs ────────────────────────────────────────────
@@ -128,7 +140,7 @@ accepted_cves:
     reason: "No fix available from Red Hat."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   # ── ipa-common, python3-ipalib ──────────────────────────────
@@ -143,8 +155,20 @@ accepted_cves:
     reason: "Fix now available — was: No fix available from Red Hat for RHEL 9 or RHEL 10."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
+
+  # ── python3, python3-libs ───────────────────────────────────
+
+  CVE-2026-19553:
+    severity: High
+    packages: ["python3", "python3-libs"]
+    fix_available: false
+    reason: "Auto-accepted — no fix available from vendor"
+    accepted_by: "parmstro"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   # ── bind-libs, bind-license, bind-utils ─────────────────────
 
@@ -155,7 +179,7 @@ accepted_cves:
     reason: "No fix available from Red Hat."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   CVE-2026-19667:
@@ -165,7 +189,7 @@ accepted_cves:
     reason: "No fix available from Red Hat."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   # ── ipa-common, python3-ipalib ──────────────────────────────
@@ -176,9 +200,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   # ── rpm-sequoia ─────────────────────────────────────────────
 
@@ -188,9 +212,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   # ── vim-common, vim-data, vim-enhanced, vim-filesystem, vim-minimal, xxd ─
 
@@ -201,7 +225,7 @@ accepted_cves:
     reason: "No fix available from Red Hat."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   # ── libblkid, libfdisk, libmount, libsmartcols, libuuid, util-linux, util-linux-core ─
@@ -212,9 +236,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   CVE-2026-53613:
     severity: High
@@ -223,7 +247,7 @@ accepted_cves:
     reason: "No fix available from Red Hat."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   CVE-2026-53614:
@@ -232,9 +256,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   # ── python3-pyasn1, python3-pyasn1-modules ──────────────────
 
@@ -245,7 +269,7 @@ accepted_cves:
     reason: "No fix available from Red Hat."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   # ── libvirt-libs ────────────────────────────────────────────
@@ -257,20 +281,8 @@ accepted_cves:
     reason: "No fix available from Red Hat."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
-
-  # ── expat ───────────────────────────────────────────────────
-
-  CVE-2026-66046:
-    severity: High
-    packages: ["expat"]
-    fix_available: false
-    reason: "Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
 
   # ── vim-common, vim-data, vim-enhanced, vim-filesystem, vim-minimal, xxd ─
 
@@ -281,7 +293,7 @@ accepted_cves:
     reason: "No fix available from Red Hat."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   # ── ipa-common, python3-ipalib ──────────────────────────────
@@ -296,7 +308,7 @@ accepted_cves:
     reason: "Fix now available — was: No fix available from Red Hat for RHEL 9 or RHEL 10."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   CVE-2026-73198:
@@ -309,7 +321,7 @@ accepted_cves:
     reason: "Fix now available — was: No fix available from Red Hat for RHEL 9 or RHEL 10."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   # ── openssl-libs ────────────────────────────────────────────
@@ -321,7 +333,7 @@ accepted_cves:
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
     accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-14"
 
   # ── ipa-common, python3-ipalib ──────────────────────────────
@@ -336,7 +348,7 @@ accepted_cves:
     reason: "Fix now available — was: RHEL 9: fix 4.13.4-1.el9_8 not yet published to AppStream. RHEL 10: no fix available for 4.13.1-3.el10_2.2."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   # ── expat ───────────────────────────────────────────────────
@@ -348,7 +360,7 @@ accepted_cves:
     reason: "No fix available from Red Hat."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   # ── libblkid, libfdisk, libmount, libsmartcols, libuuid, util-linux, util-linux-core ─
@@ -359,9 +371,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   CVE-2026-78408:
     severity: High
@@ -369,9 +381,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   CVE-2026-78410:
     severity: High
@@ -379,9 +391,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   # ── ipa-common, python3-ipalib ──────────────────────────────
 
@@ -395,7 +407,7 @@ accepted_cves:
     reason: "Fix now available — was: No fix available from Red Hat for RHEL 9 or RHEL 10."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   # ── bind-libs, bind-license, bind-utils ─────────────────────
@@ -407,7 +419,7 @@ accepted_cves:
     reason: "No fix available from Red Hat. Upstream BIND vulnerability."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   CVE-2026-81563:
@@ -416,9 +428,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   CVE-2026-81736:
     severity: High
@@ -426,9 +438,9 @@ accepted_cves:
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"
+    accepted_date: "2026-10-02"
+    last_scanned: "2026-10-02"
+    review_by: "2026-10-16"
 
   # ── openssl-libs ────────────────────────────────────────────
 
@@ -439,7 +451,7 @@ accepted_cves:
     reason: "Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
     accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-14"
 
   # ── pcre2, pcre2-syntax ─────────────────────────────────────
@@ -451,7 +463,7 @@ accepted_cves:
     reason: "No fix available from Red Hat."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
 
   CVE-2026-89161:
@@ -461,17 +473,5 @@ accepted_cves:
     reason: "No fix available from Red Hat."
     accepted_by: "parmstro"
     accepted_date: "2026-09-29"
-    last_scanned: "2026-09-30"
+    last_scanned: "2026-10-02"
     review_by: "2026-10-13"
-
-  # ── expat ───────────────────────────────────────────────────
-
-  CVE-2026-93990:
-    severity: High
-    packages: ["expat"]
-    fix_available: false
-    reason: "Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-09-30"
-    last_scanned: "2026-09-30"
-    review_by: "2026-10-14"

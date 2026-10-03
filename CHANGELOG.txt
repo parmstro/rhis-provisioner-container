@@ -83,4 +83,119 @@
            - added deploy_kvm_hypervisors helper script
            - build 9-2.4 1.0.109
            - build 9-2.5 1.0.70
+2026-03-19 - rhis-builder-aap: separated main and platform_post, new order for standalone
+           - rhis-builder-aap: hub completion check after EE build, vault variable cleanup
+           - rhis-builder-inventory: initial Quay registry configuration (PR#11)
+           - rhis-builder-inventory: jinja template looping on system count and name strategy (PR#12)
+           - rhis-builder-inventory: EE updates, credential type additions
+2026-03-25 - rhis-builder-inventory: major template overhaul — all variables available in AAP,
+             new credential types, SOE content pipeline Dev+QA templates, Slack notifications,
+             VMware test pipeline, hostgroup normalization, kickstart 9.7, discovery facts
+           - rhis-builder-inventory: complete build test across all server types (PR#15, #16)
+           - rhis-builder-aap: ensure uniquely named variables across projects to avoid collision
+           - rhis-builder-satellite: sync task conflict checking, satellite init wait
+2026-04-09 - rhis-provisioner-container: base update for latest UBI, add rhis-builder-kvm
+           - rhis-builder-satellite: libvirt compute resource TLS support (PR#8)
+           - rhis-builder-kvm: initial commit — tested deploy and build on kvm1, kvm2, satellite1
+2026-04-15 - rhis-builder-aap: manifest upload, non-root permissions, validate_certs fixes
+           - rhis-builder-pipelines: ansible.controller collection version constraint handling
+2026-04-17 - rhis-provisioner-container: consolidate helper scripts — inventory arg, help, better
+             arg handling. Remove version-specific files. Containerfile updated for new layout.
+           - rhis-builder-aap: final fixes for AAP 2.6 container deploy by non-root user
+           - rhis-builder-inventory: validate_build support (PR#25)
+2026-04-29 - rhis-provisioner-container: dnf requirements and version updates
+           - architecture documentation links added across aap, satellite, idm repos
+           - rhis-builder-idm: argument specs and Galaxy metadata for all roles (PR#10, reverted)
+2026-05-22 - rhis-builder-inventory: vault variable schema documentation, --ssh-dir flag,
+             RHEL 10 dhclient compatibility fix, README improvements
+           - rhis-builder-satellite: content import SELinux context, skip flags for disconnected
+2026-05-29 - rhis-provisioner-container: new helper scripts and fixes
+           - rhis-builder-satellite: remove /etc/hosts and resolv.conf manipulation from pre
+           - rhis-builder-idm: build completion message with Web UI URL, user.random guard
+2026-06-02 - rhis-builder-inventory: comprehensive schema audit, variable renames, satellite SOE
+             configuration, migration tooling (PR#30)
+           - rhis-builder-satellite: disconnected export orchestration, ISO pre-stage variables,
+             content_export_prepare_drv role, synchronize support
+2026-06-06 - rhis-provisioner-container: rename build_sat_primary_connected to build_sat_primary
+           - rhis-builder-satellite: increase async_timeout to 43200s (12h) for product sync
+           - rhis-builder-inventory: satellite build fixes, FQD prefix removal, schema docs
+2026-06-08 - rhis-provisioner-container: add 8 missing rhis-builder repos to container,
+             replace baremetal-init with bootstrap-init in container and bundle validation
+           - rhis-builder-bootstrap-init: initial commit — role extracted from baremetal-init,
+             install media repo, extra hosts, MAC handling, /etc/hosts population
+           - rhis-builder-inventory: remove all disco naming references, highside.example.ca model,
+             deployment relationship model, standard ansible-lint across all repos
+           - rhis-builder-satellite: disconnected export workflow completion
+           - rhis-builder-kvm: kvm_host role update and new kvm roles
+2026-06-11 - rhis-provisioner-container: vault security sweep and DRIVE VALID declaration (reverted)
+           - rhis-builder-inventory: transfer drive operator tools, drive validation
+           - rhis-builder-bootstrap-init: rsync package and dvd.repo for kickstart
+2026-06-30 - rhis-provisioner-container: BRANCH build arg, task runner scripts, disconnected import
+             refactor with C3 layout and validate rewrite
+           - rhis-builder-inventory: export/import workflow refactor, basevars for ISO download,
+             disconnected support for idm propagation and satellite rendering, architecture docs
+           - rhis-builder-bootstrap-init: per-host time_servers support
+           - rhis-builder-idm: disconnected support, drop RHEL 8 from idm_pre
+2026-07-06 - rhis-provisioner-container: build_sat_disconnected fixes, export script copy to sources
+           - feat/bootstrap-init-migration merged to main (PR#8)
+           - rhis-builder-inventory: SOE catalog schema, transfer drive tooling,
+             export_deployment refactor to Ansible, pxegrub template removal
+           - rhis-builder-kvm: kvm_iscsi_lvmlock role for shared storage with live migration,
+             ipa-getcert certmonger fix
+2026-07-08 - rhis-builder-inventory: disconnected satellite three-workflow model, template
+             overrides, settings j2 migration
+2026-08-13 - rhis-builder-inventory: AAP Hub optional, AAP 2.4 deprecated, ESXi removal,
+             inventory host model with ipv4_address from CIDR and hostvars references
+2026-09-19 - rhis-builder-aap: refactor EE build task with error handling, AAP authenticator
+             configuration, generic credential type input passing
+           - rhis-builder-pipelines: VMware snapshot module rename, WordPress salt rendering,
+             host selection refactor
+2026-09-27 - rhis-builder-inventory: AAP 2.4 fully removed, EDA Controller 2.6 support,
+             Northwind multi-tier app pipeline (dev + QA), OCP 4.20/4.22 container content,
+             deployment personalization model, EE template fixes, VMware generalization,
+             disconnected satellite latest test passed
+           - rhis-builder-inventory: merged disconnected_satellite (PR#66), aap_26_fixes (PR#67)
+2026-09-28 - rhis-builder-satellite: pulp_container optimization role for container sync bypass
+           - rhis-builder-inventory: pulp_container bypass config (PR#68)
+2026-09-30 - rhis-provisioner-container: complete build pipeline refactor — scanning integration
+             (Grype, Trivy, ClamAV, KICS), cosign keyless signing and verification, SBOM
+             attestation, auto-reconcile CVE accepted risks, OS-versioned requirements,
+             build.local.conf support (PR#10, #11, #12)
+           - rhis-builder-inventory: ansible-lint standardization, wordpress operator credential
+             type (PR#69)
+           - rhis-builder-aap: HTTPS for private hub endpoint check
+           - rhis-builder-pipelines: remove deprecated rhis_build_from_provisioner.yml,
+             vault variable naming convention
+           - ansible-lint config standardized across all repos
+2026-10-01 - rhis-builder-inventory: band-based IP addressing scheme, Northwind credential type,
+             community.postgresql collection for satellite_ee_9, system count validation,
+             python3-psycopg2 in EE bindep, VMware template standardization
+           - rhis-builder-aap: EE tag support, remove_signatures default to false
+           - rhis-builder-pipelines: Northwind multi-tier demo application — Django API,
+             PostgreSQL, HAProxy load balancer, full test framework
+           - rhis-builder-bootstrap-init: disconnected bootstrap — simplified network config,
+             hardened kickstart, genisoimage package, sudoers fixes
+2026-10-02 - rhis-builder-inventory: EE repository namespace, aap_gateway_host routing,
+             time server IPs, EE tag to latest
+           - rhis-builder-aap: aap_gateway_host routing, EE namespace support,
+             deprecated parameter cleanup (controller_oauthtoken → aap_token,
+             remove custom_virtualenv, remove vault_credential)
+           - rhis-builder-pipelines: Northwind fixes — SQL copy to remote, HAProxy backend
+             naming, sequence privileges, postgresql_script login_db, service restarts
+           - rhis-builder-satellite: time server IPs in capsule_pre
+           - rhis-provisioner-container: build version updates, CVE risk reconciliation
+           - rhis-mcp-server: initial knowledge base — network troubleshooting, automation hub
+             503 contention, confidence schema, faceted taxonomy
+2026-10-03 - rhis-builder-inventory: QA promote targets Staging (not Production) for both
+             Northwind and SOE pipelines, workflow notifications updated to SlackMsg with
+             all 4 event types, WordPress templates use python3 + operator credential
+           - rhis-builder-aap: notification_template module name fix, unused test_node.yml removed
+           - rhis-builder-pipelines: Northwind merged to main — seed data idempotency (UNIQUE
+             constraints + database drop/recreate), test reference resolution at execution time
+             (safe JSON string replacement), full order lifecycle QA passing
+           - rhis-builder-bootstrap-init: feat/disconnected-bootstrap merged to main
+           - rhis-mcp-server: branch renamed master → main, knowledge base additions (test
+             lifecycle model, deployment unit concept, EE cascade troubleshooting, production
+             patch pipeline design)
+           - rhis-maintenance: initial repo — collection audit tooling with version-keyed caching
 END

@@ -1,0 +1,37 @@
+---
+# Register the Provisioner to IdM
+#
+# Run after IdM is built.
+# Uses redhat.rhel_idm.ipaclient to install and configure the IPA client
+# on the provisioner so it can resolve and authenticate to all IdM-managed hosts.
+#
+# Required inventory variables:
+#   ipaserver_domain, ipaserver_realm, ipa_server_fqdn,
+#   ipaadmin_principal (via vault), ipaadmin_password (via vault),
+#   ipaclient_* variables from group_vars/all
+
+- name: "Register Provisioner to IdM"
+  hosts: provisioner
+  become: true
+  gather_facts: true
+
+  tasks:
+
+    - name: "Load the vault variables"
+      when: vault_dir is defined
+      ansible.builtin.include_vars:
+        dir: "{{ vault_dir }}"
+      tags:
+        - always
+
+    - name: "Ensure IPA client packages are installed"
+      ansible.builtin.dnf:
+        name:
+          - ipa-client
+          - sssd-ssh
+        state: present
+
+    - name: "Register provisioner to IdM"
+      ansible.builtin.include_role:
+        name: redhat.rhel_idm.ipaclient
+...

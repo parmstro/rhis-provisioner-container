@@ -1,0 +1,48 @@
+---
+# Register the IdM server to Satellite
+#
+# Run after both IdM and Satellite are built.
+# Uses redhat.satellite.registration_command to generate a registration
+# command, then executes it on the IdM host.
+#
+# Required inventory variables:
+#   satellite_url, satellite_username, satellite_password,
+#   satellite_organization, satellite_validate_certs,
+#   satellite_existing_hosts (list with activation_keys, lifecycle_environment, etc.)
+
+- name: "Register IdM server to Satellite"
+  hosts: idm_primary
+  become: true
+  gather_facts: true
+
+  tasks:
+
+    - name: "Load the vault variables"
+      when: vault_dir is defined
+      ansible.builtin.include_vars:
+        dir: "{{ vault_dir }}"
+      tags:
+        - always
+
+    - name: "Generate registration command"
+      redhat.satellite.registration_command:
+        username: "{{ satellite_username }}"
+        password: "{{ satellite_password }}"
+        server_url: "{{ satellite_url }}"
+        organization: "{{ satellite_organization }}"
+        validate_certs: "{{ satellite_validate_certs | default(true) }}"
+        activation_keys: "{{ satellite_existing_hosts[0].activation_keys }}"
+        lifecycle_environment: "{{ satellite_existing_hosts[0].lifecycle_environment | default(omit) }}"
+        hostgroup: "{{ satellite_existing_hosts[0].hostgroup | default(omit) }}"
+        force: "{{ satellite_existing_hosts[0].force | default(true) }}"
+        setup_insights: "{{ satellite_existing_hosts[0].setup_insights | default(false) }}"
+        setup_remote_execution: "{{ satellite_existing_hosts[0].setup_remote_execution | default(true) }}"
+      register: registration_command
+      delegate_to: localhost
+
+    - name: "Register IdM host"
+      ansible.builtin.shell:
+        cmd: "{{ registration_command.registration_command }}"
+      register: registration_result
+      changed_when: registration_result.rc == 0
+...

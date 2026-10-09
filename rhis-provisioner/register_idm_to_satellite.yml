@@ -40,7 +40,7 @@
       register: registration_command
       delegate_to: localhost
 
-    - name: "Register IdM host"
+    - name: "Register IdM host"  # noqa: command-instead-of-shell
       ansible.builtin.shell:
         cmd: "{{ registration_command.registration_command }}"
       register: registration_result

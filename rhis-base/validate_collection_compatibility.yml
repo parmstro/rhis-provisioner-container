@@ -21,9 +21,13 @@
     target: ""
     config_file: "{{ playbook_dir }}/validate_collections_config.yml"
     galaxy_api_url: "https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/index"
+    ah_published_api_url: "https://console.redhat.com/api/automation-hub/v3/plugin/ansible/content/published/collections/index"
+    ah_validated_api_url: "https://console.redhat.com/api/automation-hub/v3/plugin/ansible/content/validated/collections/index"
+    ah_ansible_cfg: "/etc/ansible/ansible.cfg"
     generate_requirements: false
     output_dir: "{{ playbook_dir }}"
     run_user: "{{ lookup('env', 'USER') }}"
+    _compat_reports_dir: "{{ playbook_dir }}/compatibility-reports"
 
   tasks:
 
@@ -58,6 +62,22 @@
         target_config: "{{ config.targets[target] }}"
         target_collections: "{{ config.collections | selectattr('targets', 'contains', target) | list }}"
 
+    - name: Set report timestamp
+      ansible.builtin.set_fact:
+        _compat_timestamp: "{{ now(utc=true).strftime('%Y%m%d-%H%M%S') }}"
+
+    - name: Set report directory
+      ansible.builtin.set_fact:
+        _compat_report_path: "{{ _compat_reports_dir }}/compat-{{ target }}-{{ _compat_timestamp }}"
+
+    - name: Create report directory
+      ansible.builtin.file:
+        path: "{{ _compat_report_path }}"
+        state: directory
+        owner: "{{ run_user }}"
+        group: "{{ run_user }}"
+        mode: '0755'
+
     # ── Introspect container image ────────────────────────────────────────
 
     - name: Pull container image
@@ -91,9 +111,11 @@
       when: introspected_version is version(target_config.min_ansible_core, '<')
 
     - name: Display introspection result
-      ansible.builtin.debug:
-        msg: >-
-          Target: {{ target }} | Image: {{ target_config.image }} |
+      ansible.builtin.pause:
+        seconds: 0
+        prompt: |
+
+          Target: {{ target }} | Image: {{ target_config.image }}
           ansible-core: {{ introspected_version }} (minimum: {{ target_config.min_ansible_core }}) | OK
 
     # ── Query Galaxy API for public collections ───────────────────────────
@@ -223,7 +245,94 @@
       loop_control:
         label: "{{ item.name }}"
 
-    # ── Analyze Automation Hub collections (from installed metadata) ──────
+    # ── Authenticate to Automation Hub ──────────────────────────────────
+
+    - name: Read Automation Hub offline token from ansible.cfg
+      ansible.builtin.set_fact:
+        _ah_offline_token: >-
+          {{ lookup('ansible.builtin.ini', 'token',
+             section='galaxy_server.automation_hub_published',
+             file=ah_ansible_cfg) }}
+        _ah_auth_url: >-
+          {{ lookup('ansible.builtin.ini', 'auth_url',
+             section='galaxy_server.automation_hub_published',
+             file=ah_ansible_cfg) }}
+      no_log: true
+
+    - name: Exchange offline token for access token
+      ansible.builtin.command:
+        cmd: >-
+          curl -s
+          -d "grant_type=refresh_token&client_id=cloud-services&refresh_token={{ _ah_offline_token }}"
+          {{ _ah_auth_url }}
+      register: _ah_token_response
+      changed_when: false
+      no_log: true
+
+    - name: Fail if token exchange failed
+      ansible.builtin.fail:
+        msg: >-
+          Automation Hub token exchange failed. Verify the offline token
+          in {{ ah_ansible_cfg }} is current.
+      when: >-
+        _ah_token_response.rc != 0 or
+        (_ah_token_response.stdout | from_json).access_token is not defined
+
+    - name: Set access token
+      ansible.builtin.set_fact:
+        _ah_access_token: "{{ (_ah_token_response.stdout | from_json).access_token }}"
+      no_log: true
+
+    # ── Query Automation Hub API for collections ─────────────────────────
+
+    - name: Query Automation Hub published API for collection versions
+      ansible.builtin.command:
+        cmd: >-
+          curl -s -H "Authorization: Bearer {{ _ah_access_token }}"
+          "{{ ah_published_api_url }}/{{ item.name.split('.')[0] }}/{{ item.name.split('.')[1] }}/versions/?limit=100&ordering=-version"
+      register: ah_published_page1
+      loop: "{{ target_collections | selectattr('source', 'eq', 'automation_hub') | list }}"
+      loop_control:
+        label: "{{ item.name }}"
+      changed_when: false
+      no_log: true
+
+    - name: Query Automation Hub validated API for collections not in published
+      ansible.builtin.command:
+        cmd: >-
+          curl -s -H "Authorization: Bearer {{ _ah_access_token }}"
+          "{{ ah_validated_api_url }}/{{ item.item.name.split('.')[0] }}/{{ item.item.name.split('.')[1] }}/versions/?limit=100&ordering=-version"
+      register: ah_validated_page1
+      loop: "{{ ah_published_page1.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: (item.stdout | from_json).data | default([]) | length == 0
+      changed_when: false
+      no_log: true
+
+    - name: Combine Automation Hub version data
+      ansible.builtin.set_fact:
+        ah_versions: >-
+          {{
+            ah_versions | default({}) | combine({
+              item.item.name: (
+                (item.stdout | from_json).data | default([])
+                if (item.stdout | from_json).data | default([]) | length > 0
+                else (ah_validated_page1.results | default([])
+                      | selectattr('item.item.name', 'defined')
+                      | selectattr('item.item.name', 'eq', item.item.name)
+                      | map(attribute='stdout')
+                      | map('from_json')
+                      | map(attribute='data')
+                      | flatten | list)
+              )
+            })
+          }}
+      loop: "{{ ah_published_page1.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    # ── Get installed Automation Hub collection versions ──────────────────
 
     - name: Get installed Automation Hub collection paths
       ansible.builtin.command:
@@ -233,18 +342,6 @@
       loop_control:
         label: "{{ item.name }}"
       changed_when: false
-      failed_when: false
-
-    - name: Read runtime.yml for installed Automation Hub collections
-      ansible.builtin.slurp:
-        src: >-
-          {{ (ah_item.stdout | from_json).keys() | first }}/{{ ah_item.item.name | replace('.', '/') }}/meta/runtime.yml
-      register: ah_runtime
-      loop: "{{ ah_installed.results }}"
-      loop_control:
-        loop_var: ah_item
-        label: "{{ ah_item.item.name }}"
-      when: ah_item.rc == 0
       failed_when: false
 
     - name: Read MANIFEST.json for installed Automation Hub collection versions
@@ -259,21 +356,21 @@
       when: ah_item.rc == 0
       failed_when: false
 
+    # ── Analyze Automation Hub collections ────────────────────────────────
+
     - name: Analyze Automation Hub collection compatibility
       ansible.builtin.set_fact:
         report: "{{ report | default([]) + [entry] }}"
       vars:
-        cname: "{{ item.ah_item.item.name }}"
-        is_override: "{{ item.ah_item.item.override | default(false) }}"
-        cmin_version: "{{ item.ah_item.item.min_version | default('') }}"
-        cnotes: "{{ item.ah_item.item.notes | default('') }}"
-        runtime: >-
-          {{ (item.content | b64decode | from_yaml) if item.content is defined else {} }}
-        requires_ansible: "{{ runtime.requires_ansible | default('UNKNOWN') }}"
-        req_ver: "{{ requires_ansible | regex_replace('>=\\s*', '') | regex_replace(',.*', '') | trim }}"
+        cname: "{{ item.name }}"
+        is_override: "{{ item.override | default(false) }}"
+        cmin_version: "{{ item.min_version | default('') }}"
+        cnotes: "{{ item.notes | default('') }}"
+        versions_raw: "{{ ah_versions[cname] | default([]) }}"
         manifest_data: >-
           {{ (ah_manifest.results
               | selectattr('ah_item.item.name', 'eq', cname)
+              | selectattr('content', 'defined')
               | map(attribute='content')
               | first
               | default('')
@@ -284,57 +381,98 @@
               | list | length > 0) else {} }}
         installed_ver: >-
           {{ manifest_data.collection_info.version | default('UNKNOWN') }}
-        is_compatible: >-
-          {{ introspected_version is version(req_ver, '>=')
-             if requires_ansible != 'UNKNOWN' else 'UNKNOWN' }}
-        status: >-
-          {%- if is_compatible | string == 'True' -%}
-            OK
-          {%- elif is_override | bool -%}
-            OVERRIDE
-          {%- else -%}
+        last_compat_version: >-
+          {%- set ns = namespace(found='NONE') -%}
+          {%- for v in versions_raw -%}
+            {%- set ra = v.requires_ansible | default('', true) -%}
+            {%- if ra != '' and '>=' in ra -%}
+              {%- set req_ver = ra | regex_replace('>=\s*', '') | regex_replace(',.*', '') | trim -%}
+              {%- if introspected_version is version(req_ver, '>=') -%}
+                {%- if ns.found == 'NONE' -%}
+                  {%- set ns.found = v.version -%}
+                {%- endif -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ ns.found }}
+        first_incompat_version: >-
+          {%- set ns = namespace(found='N/A') -%}
+          {%- for v in versions_raw | reverse -%}
+            {%- set ra = v.requires_ansible | default('', true) -%}
+            {%- if ra != '' and '>=' in ra -%}
+              {%- set req_ver = ra | regex_replace('>=\s*', '') | regex_replace(',.*', '') | trim -%}
+              {%- if introspected_version is version(req_ver, '<') -%}
+                {%- if ns.found == 'N/A' -%}
+                  {%- set ns.found = v.version -%}
+                {%- endif -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ ns.found }}
+        latest_ver: "{{ versions_raw | map(attribute='version') | first | default('UNKNOWN') }}"
+        latest_req: "{{ versions_raw | map(attribute='requires_ansible') | reject('none') | first | default('UNKNOWN') }}"
+        recommended: >-
+          {%- if last_compat_version == 'NONE' and is_override | bool -%}
+            *
+          {%- elif last_compat_version == 'NONE' -%}
             INCOMPATIBLE
+          {%- elif last_compat_version == latest_ver -%}
+            *
+          {%- else -%}
+            <{{ first_incompat_version }}
+          {%- endif -%}
+        status: >-
+          {%- if last_compat_version == 'NONE' and is_override | bool -%}
+            OVERRIDE
+          {%- elif last_compat_version == 'NONE' -%}
+            INCOMPATIBLE
+          {%- elif last_compat_version == latest_ver -%}
+            OK
+          {%- else -%}
+            CAPPED
           {%- endif -%}
         entry:
           name: "{{ cname }}"
           source: "automation_hub"
           override: "{{ is_override }}"
-          version_pin: "{{ item.ah_item.item.version_pin | default('') }}"
+          version_pin: "{{ item.version_pin | default('') }}"
           min_version: "{{ cmin_version }}"
           notes: "{{ cnotes }}"
           installed_version: "{{ installed_ver }}"
-          requires_ansible: "{{ requires_ansible }}"
-          compatible: "{{ is_compatible }}"
+          latest_version: "{{ latest_ver }}"
+          latest_requires_ansible: "{{ latest_req }}"
+          last_compatible: "{{ last_compat_version }}"
+          first_incompatible: "{{ first_incompat_version }}"
+          recommended_constraint: "{{ recommended | trim }}"
           status: "{{ status | trim }}"
-      loop: "{{ ah_runtime.results }}"
+      loop: "{{ target_collections | selectattr('source', 'eq', 'automation_hub') | list }}"
       loop_control:
-        label: "{{ item.ah_item.item.name }}"
-      when: item.ah_item.rc == 0
+        label: "{{ item.name }}"
 
     # ── Report ────────────────────────────────────────────────────────────
 
     - name: Display compatibility report
-      ansible.builtin.debug:
-        msg: |
+      ansible.builtin.pause:
+        seconds: 0
+        prompt: |
+
           ══════════════════════════════════════════════════════════════════════
             Collection Compatibility Report
             Target:       {{ target }}
             Image:        {{ target_config.image }}
             ansible-core: {{ introspected_version }} (min: {{ target_config.min_ansible_core }})
-            Date:         {{ now(utc=true) | string | regex_replace('\\..*', '') }}
+            Date:         {{ _compat_timestamp }}
           ══════════════════════════════════════════════════════════════════════
           {% for entry in report | default([]) | sort(attribute='name') %}
 
           {{ entry.name }}
             Source: {{ entry.source }} | Status: {{ entry.status }}
-          {% if entry.source == 'galaxy' %}
             Latest:           {{ entry.latest_version }} (requires {{ entry.latest_requires_ansible }})
             Last compatible:  {{ entry.last_compatible }}
             First incompat:   {{ entry.first_incompatible }}
             Recommended:      {{ entry.recommended_constraint }}
-          {% else %}
-            Installed:        {{ entry.installed_version | default('N/A') }}
-            requires_ansible: {{ entry.requires_ansible | default('N/A') }}
+          {% if entry.installed_version | default('') != '' %}
+            Installed:        {{ entry.installed_version }}
           {% endif %}
           {% if entry.override | default(false) | bool %}
             ⚠ OVERRIDE: {{ entry.notes | default('works despite metadata mismatch') }}
@@ -347,8 +485,10 @@
           ══════════════════════════════════════════════════════════════════════
 
     - name: Summarize issues
-      ansible.builtin.debug:
-        msg: |
+      ansible.builtin.pause:
+        seconds: 0
+        prompt: |
+
           ISSUES:
           {% set issues = report | default([]) | selectattr('status', 'eq', 'INCOMPATIBLE') | list %}
           {% if issues | length > 0 %}
@@ -359,11 +499,79 @@
             None — all collections are compatible or have approved overrides.
           {% endif %}
 
+    # ── Write report files ──────────────────────────────────────────────
+
+    - name: Write compatibility report
+      ansible.builtin.copy:
+        dest: "{{ _compat_report_path }}/compatibility-report.txt"
+        owner: "{{ run_user }}"
+        group: "{{ run_user }}"
+        mode: "0644"
+        content: |
+          Collection Compatibility Report
+          Target:       {{ target }}
+          Image:        {{ target_config.image }}
+          ansible-core: {{ introspected_version }} (min: {{ target_config.min_ansible_core }})
+          Date:         {{ _compat_timestamp }}
+          ══════════════════════════════════════════════════════════════════════
+          {% for entry in report | default([]) | sort(attribute='name') %}
+
+          {{ entry.name }}
+            Source: {{ entry.source }} | Status: {{ entry.status }}
+            Latest:           {{ entry.latest_version }} (requires {{ entry.latest_requires_ansible }})
+            Last compatible:  {{ entry.last_compatible }}
+            First incompat:   {{ entry.first_incompatible }}
+            Recommended:      {{ entry.recommended_constraint }}
+          {% if entry.installed_version | default('') != '' %}
+            Installed:        {{ entry.installed_version }}
+          {% endif %}
+          {% if entry.override | default(false) | bool %}
+            OVERRIDE: {{ entry.notes | default('works despite metadata mismatch') }}
+          {% endif %}
+          {% if entry.min_version | default('') != '' %}
+            Min version:      >= {{ entry.min_version }}
+          {% endif %}
+          {% endfor %}
+
+          ══════════════════════════════════════════════════════════════════════
+          {% set issues = report | default([]) | selectattr('status', 'eq', 'INCOMPATIBLE') | list %}
+          ISSUES:
+          {% if issues | length > 0 %}
+          {% for i in issues %}
+            FAIL: {{ i.name }} — no compatible version for ansible-core {{ introspected_version }}
+          {% endfor %}
+          {% else %}
+            None — all collections are compatible or have approved overrides.
+          {% endif %}
+
+    - name: Write compatibility data as JSON
+      ansible.builtin.copy:
+        dest: "{{ _compat_report_path }}/compatibility-data.json"
+        owner: "{{ run_user }}"
+        group: "{{ run_user }}"
+        mode: "0644"
+        content: "{{ _compat_json | to_nice_json }}"
+      vars:
+        _compat_json:
+          target: "{{ target }}"
+          image: "{{ target_config.image }}"
+          ansible_core: "{{ introspected_version }}"
+          min_ansible_core: "{{ target_config.min_ansible_core }}"
+          timestamp: "{{ _compat_timestamp }}"
+          collections: "{{ report | default([]) | sort(attribute='name') }}"
+
+    - name: Report saved
+      ansible.builtin.pause:
+        seconds: 0
+        prompt: |
+
+          Report saved to: {{ _compat_report_path }}/
+
     # ── Optional: generate timestamped requirements.yml ───────────────────
 
     - name: Generate timestamped requirements.yml
       ansible.builtin.copy:
-        dest: "{{ output_dir }}/requirements-{{ target }}-{{ now(utc=true).strftime('%Y%m%d-%H%M%S') }}.yml"
+        dest: "{{ _compat_report_path }}/requirements-{{ target }}.yml"
         owner: "{{ run_user }}"
         group: "{{ run_user }}"
         mode: "0644"
@@ -372,7 +580,7 @@
           # Generated by validate_collection_compatibility.yml
           # Target: {{ target }} ({{ target_config.image }})
           # ansible-core: {{ introspected_version }}
-          # Generated: {{ now(utc=true) | string | regex_replace('\\..*', '') }}
+          # Generated: {{ _compat_timestamp }}
 
           collections:
           {% for entry in report | default([]) | sort(attribute='name') %}

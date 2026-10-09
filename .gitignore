@@ -3,6 +3,7 @@
 internal*
 ansible.cfg
 scan-reports/
+compatibility-reports/
 extracted-info.zip
 *.old
 rhis-base/sources/

@@ -409,10 +409,9 @@
       ansible.builtin.shell:
         cmd: >-
           {{ scan_config.scan_tools.cosign.path }} sign --yes
+          --oidc-device-code
           {{ image_digest_ref }}
           > /tmp/cosign-sign.log 2>&1
-      environment:
-        COSIGN_EXPERIMENTAL: "1"
       async: 600
       poll: 0
       register: cosign_sign_job
@@ -465,12 +464,11 @@
       ansible.builtin.shell:
         cmd: >-
           {{ scan_config.scan_tools.cosign.path }} attest --yes
+          --oidc-device-code
           --predicate {{ syft_sbom.report }}
           --type spdxjson
           {{ image_digest_ref }}
           > /tmp/cosign-attest-sbom.log 2>&1
-      environment:
-        COSIGN_EXPERIMENTAL: "1"
       async: 600
       poll: 0
       register: sbom_attest_job
@@ -523,12 +521,11 @@
       ansible.builtin.shell:
         cmd: >-
           {{ scan_config.scan_tools.cosign.path }} attest --yes
+          --oidc-device-code
           --predicate {{ trivy_img.report }}
           --type vuln
           {{ image_digest_ref }}
           > /tmp/cosign-attest-vuln.log 2>&1
-      environment:
-        COSIGN_EXPERIMENTAL: "1"
       async: 600
       poll: 0
       register: vuln_attest_job

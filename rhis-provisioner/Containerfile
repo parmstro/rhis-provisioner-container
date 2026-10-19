@@ -48,6 +48,11 @@ COPY configure_rhis_builder.yml /rhis/configure_rhis_builder.yml
 RUN chmod +x /rhis/configure_rhis_builder.yml
 RUN ansible-playbook /rhis/configure_rhis_builder.yml --extra-vars "branch=${BRANCH}"
 
+# patch redhat.satellite collection if version < 6.1.0 (modulemd filter rule fix)
+COPY content_view_filter_rule.py /rhis/content_view_filter_rule.py
+COPY patch_satellite_collection.yml /rhis/patch_satellite_collection.yml
+RUN ansible-playbook /rhis/patch_satellite_collection.yml
+
 # copy the reference information
 # COPY podman_commands.txt /rhis/podman_commands.txt
 # COPY rhis-builder_sample_commands.txt /rhis/rhis-builder_sample_commands.txt

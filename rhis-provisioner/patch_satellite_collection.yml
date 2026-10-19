@@ -1,0 +1,50 @@
+---
+# Injects the fixed content_view_filter_rule.py module into the redhat.satellite
+# collection when the installed version predates the upstream fix.
+# The fix adds partial NSVCA search, multi-stream support, repository scoping,
+# and fail_on_missing for modulemd filter rules.
+# Upstream PR: https://github.com/theforeman/foreman-ansible-modules/pull/2056
+
+- name: "Patch redhat.satellite collection modulemd filter rule handler"
+  hosts: localhost
+  gather_facts: false
+  vars:
+    patch_below_version: "6.1.0"
+    collection_base: "{{ lookup('ansible.builtin.first_found', paths) }}"
+    paths:
+      - /root/.ansible/collections/ansible_collections/redhat/satellite
+      - /usr/share/ansible/collections/ansible_collections/redhat/satellite
+    module_dest: "{{ collection_base }}/plugins/modules/content_view_filter_rule.py"
+    patch_source: "/rhis/content_view_filter_rule.py"
+
+  tasks:
+
+    - name: "Read collection manifest"
+      ansible.builtin.slurp:
+        src: "{{ collection_base }}/MANIFEST.json"
+      register: manifest_raw
+
+    - name: "Parse collection version"
+      ansible.builtin.set_fact:
+        satellite_collection_version: "{{ (manifest_raw.content | b64decode | from_json).collection_info.version }}"
+
+    - name: "Inject patched content_view_filter_rule.py"
+      when: satellite_collection_version is version(patch_below_version, '<')
+      ansible.builtin.copy:
+        src: "{{ patch_source }}"
+        dest: "{{ module_dest }}"
+        mode: "0644"
+        remote_src: true
+      register: patch_result
+
+    - name: "Report patch status"
+      ansible.builtin.pause:
+        seconds: 0
+        prompt: |
+          {% if satellite_collection_version is version(patch_below_version, '<') %}
+          redhat.satellite {{ satellite_collection_version }} < {{ patch_below_version }}
+          Patched content_view_filter_rule.py with modulemd fix
+          {% else %}
+          redhat.satellite {{ satellite_collection_version }} >= {{ patch_below_version }}
+          No patch needed — upstream fix is included
+          {% endif %}

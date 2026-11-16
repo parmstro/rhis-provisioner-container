@@ -39,20 +39,6 @@ accepted_cves:
     last_scanned: "2026-11-16"
     review_by: "2026-11-30"
 
-  # ── krb5-libs ───────────────────────────────────────────────
-
-  CVE-2026-107364:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
   # ── git, git-core, git-core-doc, perl-Git ───────────────────
 
   CVE-2026-111760:
@@ -64,118 +50,6 @@ accepted_cves:
     accepted_date: "2026-11-16"
     last_scanned: "2026-11-16"
     review_by: "2026-11-30"
-
-  # ── krb5-libs ───────────────────────────────────────────────
-
-  CVE-2026-112315:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
-  CVE-2026-112316:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
-  CVE-2026-112317:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
-  CVE-2026-112318:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
-  CVE-2026-112319:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
-  CVE-2026-112320:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
-  CVE-2026-112321:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
-  CVE-2026-112322:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
-  CVE-2026-112323:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
-  # ── git, git-core, git-core-doc, perl-Git ───────────────────
 
   CVE-2026-114466:
     severity: High
@@ -206,32 +80,6 @@ accepted_cves:
     packages: ["expat"]
     fix_available: false
     reason: "Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
-  # ── krb5-libs ───────────────────────────────────────────────
-
-  CVE-2026-118380:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
-  CVE-2026-119079:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
     accepted_by: "parmstro"
     accepted_date: "2026-11-12"
     last_scanned: "2026-11-16"
@@ -399,22 +247,6 @@ accepted_cves:
     last_scanned: "2026-11-16"
     review_by: "2026-10-13"
 
-  # ── bind-libs, bind-license, bind-utils ─────────────────────
-
-  CVE-2026-19630:
-    severity: High
-    packages: ["bind-libs", "bind-license", "bind-utils"]
-    fix_available: true
-    fix_versions:
-      bind-libs: "32:9.16.50-12.el9_9.1"
-      bind-license: "32:9.16.50-12.el9_9.1"
-      bind-utils: "32:9.16.50-12.el9_9.1"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-10-28"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-11"
-
   # ── vim-common, vim-enhanced, vim-filesystem, vim-minimal ───
 
   CVE-2026-43961:
@@ -426,44 +258,6 @@ accepted_cves:
     accepted_date: "2026-09-29"
     last_scanned: "2026-11-16"
     review_by: "2026-10-13"
-
-  # ── libblkid, libfdisk, libmount, libsmartcols, libuuid, util-linux, util-linux-core ─
-
-  CVE-2026-53613:
-    severity: High
-    packages: ["libblkid", "libfdisk", "libmount", "libsmartcols", "libuuid", "util-linux", "util-linux-core"]
-    fix_available: true
-    fix_versions:
-      libblkid: "0:2.37.4-28.el9_9"
-      libfdisk: "0:2.37.4-28.el9_9"
-      libmount: "0:2.37.4-28.el9_9"
-      libsmartcols: "0:2.37.4-28.el9_9"
-      libuuid: "0:2.37.4-28.el9_9"
-      util-linux: "0:2.37.4-28.el9_9"
-      util-linux-core: "0:2.37.4-28.el9_9"
-    reason: "Fix now available — was: No fix available from Red Hat."
-    accepted_by: "parmstro"
-    accepted_date: "2026-09-29"
-    last_scanned: "2026-11-16"
-    review_by: "2026-10-13"
-
-  CVE-2026-53615:
-    severity: High
-    packages: ["libblkid", "libfdisk", "libmount", "libsmartcols", "libuuid", "util-linux", "util-linux-core"]
-    fix_available: true
-    fix_versions:
-      libblkid: "0:2.37.4-28.el9_9.1"
-      libfdisk: "0:2.37.4-28.el9_9.1"
-      libmount: "0:2.37.4-28.el9_9.1"
-      libsmartcols: "0:2.37.4-28.el9_9.1"
-      libuuid: "0:2.37.4-28.el9_9.1"
-      util-linux: "0:2.37.4-28.el9_9.1"
-      util-linux-core: "0:2.37.4-28.el9_9.1"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-10-17"
-    last_scanned: "2026-11-16"
-    review_by: "2026-10-31"
 
   # ── python3-pip, python3-pip-wheel ──────────────────────────
 
@@ -486,32 +280,6 @@ accepted_cves:
     accepted_date: "2026-09-29"
     last_scanned: "2026-11-16"
     review_by: "2026-10-13"
-
-  # ── krb5-libs ───────────────────────────────────────────────
-
-  CVE-2026-71199:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
-
-  CVE-2026-71200:
-    severity: High
-    packages: ["krb5-libs"]
-    fix_available: true
-    fix_versions:
-      krb5-libs: "0:1.21.1-10.el9_9.2"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-11-12"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-26"
 
   # ── expat ───────────────────────────────────────────────────
 
@@ -536,47 +304,3 @@ accepted_cves:
     accepted_date: "2026-10-09"
     last_scanned: "2026-11-16"
     review_by: "2026-10-23"
-
-  # ── bind-libs, bind-license, bind-utils ─────────────────────
-
-  CVE-2026-94300:
-    severity: High
-    packages: ["bind-libs", "bind-license", "bind-utils"]
-    fix_available: true
-    fix_versions:
-      bind-libs: "32:9.16.50-12.el9_9.1"
-      bind-license: "32:9.16.50-12.el9_9.1"
-      bind-utils: "32:9.16.50-12.el9_9.1"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-10-28"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-11"
-
-  CVE-2026-96888:
-    severity: High
-    packages: ["bind-libs", "bind-license", "bind-utils"]
-    fix_available: true
-    fix_versions:
-      bind-libs: "32:9.16.50-12.el9_9.1"
-      bind-license: "32:9.16.50-12.el9_9.1"
-      bind-utils: "32:9.16.50-12.el9_9.1"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-10-28"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-11"
-
-  CVE-2026-97313:
-    severity: High
-    packages: ["bind-libs", "bind-license", "bind-utils"]
-    fix_available: true
-    fix_versions:
-      bind-libs: "32:9.16.50-12.el9_9.1"
-      bind-license: "32:9.16.50-12.el9_9.1"
-      bind-utils: "32:9.16.50-12.el9_9.1"
-    reason: "Fix now available — was: Auto-accepted — no fix available from vendor"
-    accepted_by: "parmstro"
-    accepted_date: "2026-10-28"
-    last_scanned: "2026-11-16"
-    review_by: "2026-11-11"

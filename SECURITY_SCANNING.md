@@ -195,9 +195,9 @@ Fully automated — no interactive authentication required.
 
 **Keyless signing** (`--cosign-method keyless`, Sigstore OIDC):
 
-1. `cosign sign --oidc-device-code` — signs via Sigstore device flow (requires browser authentication)
-2. `cosign attest --oidc-device-code --type spdxjson` — SBOM attestation (requires browser authentication)
-3. `cosign attest --oidc-device-code --type vuln` — vulnerability attestation (requires browser authentication)
+1. `cosign sign --fulcio-auth-flow=device` — signs via Sigstore device flow (requires browser authentication)
+2. `cosign attest --fulcio-auth-flow=device --type spdxjson` — SBOM attestation (requires browser authentication)
+3. `cosign attest --fulcio-auth-flow=device --type vuln` — vulnerability attestation (requires browser authentication)
 
 Three separate browser authentications are required (one per operation). The signer's OIDC identity and issuer are recorded in the Sigstore transparency log.
 

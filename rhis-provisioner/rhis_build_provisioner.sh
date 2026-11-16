@@ -327,71 +327,81 @@ verify_base_signature() {
     return 0
   fi
 
-  local method="${cosign_method:-key}"
   local pub_file="${cosign_pub:-../cosign.pub}"
 
-  {
-    echo "═══════════════════════════════════════════════════════════════"
-    echo "  Base Image Signature Verification"
-    echo "═══════════════════════════════════════════════════════════════"
-    echo "  Timestamp:  $verify_timestamp"
-    echo "  Image:      $base_image"
-    echo "  Method:     $method"
+  # Base may have been signed with either method. Try key first if pub
+  # file exists, fall back to keyless. This keeps verification independent
+  # of whatever signing method the current provisioner build uses.
+  local methods=()
+  if [[ -f "$pub_file" ]]; then
+    methods+=("key")
+  fi
+  methods+=("keyless")
+
+  local cosign_ver
+  cosign_ver=$(cosign version 2>/dev/null | grep -oP 'GitVersion:\s+\K\S+' || echo 'unknown')
+
+  for method in "${methods[@]}"; do
+    {
+      echo "═══════════════════════════════════════════════════════════════"
+      echo "  Base Image Signature Verification"
+      echo "═══════════════════════════════════════════════════════════════"
+      echo "  Timestamp:  $verify_timestamp"
+      echo "  Image:      $base_image"
+      echo "  Method:     $method"
+      if [[ "$method" == "key" ]]; then
+        echo "  Public key: $pub_file"
+      else
+        echo "  Identity:   ${cosign_identity:-'(any)'}"
+        echo "  Issuer:     ${cosign_oidc_issuer:-'(any)'}"
+      fi
+      echo "  Cosign:     $cosign_ver"
+      echo "═══════════════════════════════════════════════════════════════"
+    } | tee -a "$verify_log"
+
+    local verify_args=("verify")
+
     if [[ "$method" == "key" ]]; then
-      echo "  Public key: $pub_file"
+      verify_args+=("--key" "$pub_file")
     else
-      echo "  Identity:   ${cosign_identity:-'(any)'}"
-      echo "  Issuer:     ${cosign_oidc_issuer:-'(any)'}"
+      # cosign v3 requires both identity and issuer for keyless verification
+      if [[ -n "$cosign_identity" ]]; then
+        verify_args+=("--certificate-identity" "$cosign_identity")
+      else
+        verify_args+=("--certificate-identity-regexp" ".*")
+      fi
+      if [[ -n "$cosign_oidc_issuer" ]]; then
+        verify_args+=("--certificate-oidc-issuer" "$cosign_oidc_issuer")
+      else
+        verify_args+=("--certificate-oidc-issuer-regexp" ".*")
+      fi
     fi
-    echo "  Cosign:     $(cosign version 2>/dev/null | grep -oP 'GitVersion:\s+\K\S+' || echo 'unknown')"
-    echo "═══════════════════════════════════════════════════════════════"
-  } | tee -a "$verify_log"
 
-  local verify_args=("verify")
+    verify_args+=("$base_image")
 
-  if [[ "$method" == "key" ]]; then
-    if [[ ! -f "$pub_file" ]]; then
-      echo "ERROR: Public key not found at $pub_file" | tee -a "$verify_log"
-      echo "Generate a keypair with: cosign generate-key-pair"
-      return 1
+    local verify_output
+    verify_output=$(cosign "${verify_args[@]}" 2>&1)
+    local rc=$?
+
+    echo "$verify_output" >> "$verify_log"
+
+    if [[ $rc -eq 0 ]]; then
+      echo "" | tee -a "$verify_log"
+      echo "  Result:     PASSED ($method)" | tee -a "$verify_log"
+      echo "═══════════════════════════════════════════════════════════════" | tee -a "$verify_log"
+      echo "Cosign signature verification PASSED for $base_image (method: $method)"
+      return 0
     fi
-    verify_args+=("--key" "$pub_file")
-  else
-    if [[ -n "$cosign_identity" && -n "$cosign_oidc_issuer" ]]; then
-      verify_args+=("--certificate-identity" "$cosign_identity")
-      verify_args+=("--certificate-oidc-issuer" "$cosign_oidc_issuer")
-    elif [[ -n "$cosign_identity" ]]; then
-      verify_args+=("--certificate-identity-regexp" "$cosign_identity")
-    else
-      echo "WARNING: No --cosign-identity provided. Using Sigstore transparency log only." | tee -a "$verify_log"
-      verify_args+=("--certificate-identity-regexp" ".*")
-      verify_args+=("--certificate-oidc-issuer-regexp" ".*")
-    fi
-  fi
 
-  verify_args+=("$base_image")
-
-  local verify_output
-  verify_output=$(cosign "${verify_args[@]}" 2>&1)
-  local rc=$?
-
-  echo "$verify_output" >> "$verify_log"
-
-  if [[ $rc -ne 0 ]]; then
     echo "" | tee -a "$verify_log"
-    echo "  Result:     FAILED" | tee -a "$verify_log"
+    echo "  Result:     FAILED ($method)" | tee -a "$verify_log"
     echo "═══════════════════════════════════════════════════════════════" | tee -a "$verify_log"
-    echo "ERROR: Cosign signature verification FAILED for $base_image"
-    echo "The base image cannot be trusted. Aborting build."
-    echo "Use --skip-verify to bypass this check (not recommended)."
-    return 1
-  fi
+  done
 
-  echo "" | tee -a "$verify_log"
-  echo "  Result:     PASSED" | tee -a "$verify_log"
-  echo "═══════════════════════════════════════════════════════════════" | tee -a "$verify_log"
-  echo "Cosign signature verification PASSED for $base_image"
-  return 0
+  echo "ERROR: Cosign signature verification FAILED for $base_image (tried: ${methods[*]})"
+  echo "The base image cannot be trusted. Aborting build."
+  echo "Use --skip-verify to bypass this check (not recommended)."
+  return 1
 }
 
 get_base_version() {

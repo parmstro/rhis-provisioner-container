@@ -429,7 +429,7 @@
       ansible.builtin.shell:
         cmd: >-
           {{ scan_config.scan_tools.cosign.path }} sign --yes
-          --oidc-device-code
+          --fulcio-auth-flow=device
           {{ image_digest_ref }}
           > /tmp/cosign-sign.log 2>&1
       async: 600
@@ -497,7 +497,7 @@
       ansible.builtin.shell:
         cmd: >-
           {{ scan_config.scan_tools.cosign.path }} attest --yes
-          --oidc-device-code
+          --fulcio-auth-flow=device
           --predicate {{ syft_sbom.report }}
           --type spdxjson
           {{ image_digest_ref }}
@@ -567,7 +567,7 @@
       ansible.builtin.shell:
         cmd: >-
           {{ scan_config.scan_tools.cosign.path }} attest --yes
-          --oidc-device-code
+          --fulcio-auth-flow=device
           --predicate {{ trivy_img.report }}
           --type vuln
           {{ image_digest_ref }}

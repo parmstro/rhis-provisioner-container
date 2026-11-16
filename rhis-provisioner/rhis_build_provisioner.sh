@@ -27,6 +27,8 @@ push_registry_repo="parmstro"
 push_registry_login=""
 push_registry_token=""
 
+cosign_key=""
+cosign_pub=""
 cosign_identity=""
 cosign_oidc_issuer=""
 skip_verify="false"
@@ -309,31 +311,26 @@ verify_base_signature() {
     return 0
   fi
 
+  local pub_file="${cosign_pub:-../cosign.pub}"
+
   {
     echo "═══════════════════════════════════════════════════════════════"
     echo "  Base Image Signature Verification"
     echo "═══════════════════════════════════════════════════════════════"
     echo "  Timestamp:  $verify_timestamp"
     echo "  Image:      $base_image"
-    echo "  Identity:   ${cosign_identity:-'(any)'}"
-    echo "  Issuer:     ${cosign_oidc_issuer:-'(any)'}"
+    echo "  Public key: $pub_file"
     echo "  Cosign:     $(cosign version 2>/dev/null | grep -oP 'GitVersion:\s+\K\S+' || echo 'unknown')"
     echo "═══════════════════════════════════════════════════════════════"
   } | tee -a "$verify_log"
 
-  local verify_args=("verify")
-
-  if [[ -n "$cosign_identity" && -n "$cosign_oidc_issuer" ]]; then
-    verify_args+=("--certificate-identity" "$cosign_identity")
-    verify_args+=("--certificate-oidc-issuer" "$cosign_oidc_issuer")
-  elif [[ -n "$cosign_identity" ]]; then
-    verify_args+=("--certificate-identity-regexp" "$cosign_identity")
-  else
-    echo "WARNING: No --cosign-identity provided. Using Sigstore transparency log only." | tee -a "$verify_log"
-    verify_args+=("--certificate-identity-regexp" ".*")
-    verify_args+=("--certificate-oidc-issuer-regexp" ".*")
+  if [[ ! -f "$pub_file" ]]; then
+    echo "ERROR: Public key not found at $pub_file" | tee -a "$verify_log"
+    echo "Generate a keypair with: cosign generate-key-pair"
+    return 1
   fi
 
+  local verify_args=("verify" "--key" "$pub_file")
   verify_args+=("$base_image")
 
   local verify_output

@@ -27,7 +27,7 @@ Both the base layer (`rhis-base`) and provisioner layer (`rhis-provisioner`) imp
 │     d. CVE risk reconciliation (auto-update accepted risks)         │
 │     e. Policy enforcement (fail on actionable findings)             │
 │     f. Push to registry                                             │
-│     g. Cosign sign (keyless / Sigstore)                             │
+│     g. Cosign sign (key-based)                                      │
 │     h. Cosign attest SBOM + vulnerability scan                      │
 │  4. Update version file                                             │
 └─────────────────────────────────────────────────────────────────────┘
@@ -78,7 +78,7 @@ Both layers run the same post-build pipeline. The scan playbooks are:
 | **Trivy** | Container image vulnerability scan (OS packages, app dependencies, embedded secrets) | `trivy-image.json` |
 | **Syft** | SBOM generation from container image | `sbom.spdx.json` |
 | **Grype** | Vulnerability scan against SBOM (second-opinion, different database than Trivy) | `grype-sbom.json` |
-| **Cosign** | Container signing (keyless via Sigstore) and attestation | Signatures stored in registry |
+| **Cosign** | Container signing (key-based) and attestation | Signatures stored in registry; verify with `cosign.pub` |
 
 ### Scan Reports
 
@@ -183,15 +183,34 @@ Full accepted list (22 CVEs):
 
 ### Signing (Post-build)
 
-After a successful build and scan, images are signed using **cosign keyless signing** via Sigstore:
+After a successful build and scan, images are signed using **cosign key-based signing**:
 
-1. `cosign sign` — signs the image digest (requires OIDC browser authentication)
-2. `cosign attest --type spdxjson` — attaches the SBOM as a signed attestation
-3. `cosign attest --type vuln` — attaches the vulnerability scan as a signed attestation
+1. `cosign sign --key cosign.key` — signs the image digest
+2. `cosign attest --key cosign.key --type spdxjson` — attaches the SBOM as a signed attestation
+3. `cosign attest --key cosign.key --type vuln` — attaches the vulnerability scan as a signed attestation
 
-Signatures are stored in the registry alongside the image. The signer's identity (OIDC subject) and issuer are recorded in the Sigstore transparency log.
+Signatures are stored in the registry alongside the image as OCI artifacts. Signing is fully automated — no interactive browser authentication required.
 
-### Verification (Pre-build, provisioner only)
+### Verification
+
+**To verify a container image, you need the public key (`cosign.pub`).**
+
+The public key is committed to this repository. Anyone pulling images from the registry can verify them:
+
+```bash
+# Verify image signature
+cosign verify --key cosign.pub quay.io/parmstro/rhis-base-9-2.5:1.0.28
+
+# Verify SBOM attestation
+cosign verify-attestation --key cosign.pub --type spdxjson quay.io/parmstro/rhis-base-9-2.5:1.0.28
+
+# Verify vulnerability scan attestation
+cosign verify-attestation --key cosign.pub --type vuln quay.io/parmstro/rhis-base-9-2.5:1.0.28
+```
+
+**Pulling does not require the public key.** The signature only affects verification, not access. You can pull and run the container without verifying, but verification is recommended to confirm the image has not been tampered with.
+
+### Provisioner build verification (Pre-build)
 
 Before building the provisioner layer, the build script verifies the cosign signature on the base image pulled from the registry:
 
@@ -200,33 +219,32 @@ verify_base_signature()
   │
   ├── Skip if --skip-verify or pull_registry=localhost
   ├── Skip with warning if cosign not installed
+  ├── Fail if cosign.pub not found
   │
-  └── cosign verify
-        --certificate-identity <signer-email>
-        --certificate-oidc-issuer <oidc-provider>
+  └── cosign verify --key cosign.pub
         <registry>/<repo>/rhis-base-<os>-<aap>:<version>
 ```
 
 This ensures:
-- The base image was signed by the expected identity
-- The signature is in the Sigstore transparency log
+- The base image was signed with our private key
 - The image has not been tampered with since signing
 
 **Failure aborts the build** (exit code 4) before the expensive `podman build` step.
 
-### Configuration
+### Key management
 
-Cosign identity and OIDC issuer are configured in `build.local.conf` (gitignored):
+The signing keypair is generated with `cosign generate-key-pair`:
+
+- **`cosign.key`** — private key, gitignored, stays on the provisioner. Uses an empty passphrase for automated pipeline signing. Will move to IPA Service Vault for centralized management.
+- **`cosign.pub`** — public key, committed to the repository. Distribute to anyone who needs to verify image signatures.
+
+To regenerate the keypair (invalidates all existing signatures):
 
 ```bash
-# Local build configuration — NOT committed to git.
-cosign_identity="5768297+parmstro@users.noreply.github.com"
-cosign_oidc_issuer="https://github.com/login/oauth"
+COSIGN_PASSWORD="" cosign generate-key-pair --output-key-prefix=cosign
 ```
 
-Note: GitHub's OIDC tokens use the `{id}+{username}@users.noreply.github.com` format, not your profile email. Check your signed images with `cosign verify --certificate-identity-regexp ".*" --certificate-oidc-issuer-regexp ".*" <image>` to find the correct identity.
-
-CLI flags `--cosign-identity`, `--cosign-oidc-issuer`, and `--skip-verify` are also available and override the config file.
+The `--skip-verify` CLI flag is available on the provisioner build script to bypass signature verification (not recommended for production builds).
 
 ## KICS IaC Scanning
 

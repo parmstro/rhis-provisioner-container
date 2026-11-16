@@ -24,7 +24,9 @@ scan_tools:
     output_format: "spdx-json"
   cosign:
     path: "cosign"
-    signing_method: "keyless"
+    signing_method: "key"
+    key_file: "cosign.key"
+    pub_file: "cosign.pub"
   ansible_lint:
     path: "ansible-lint"
     profile: "safety"

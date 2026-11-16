@@ -404,173 +404,47 @@
         state: absent
       when: registry_image != ""
 
-    # ── Phase 5: Sign image with cosign (keyless / Sigstore) ──────────────
+    # ── Phase 5: Sign image with cosign (key-based) ────────────────────────
 
-    - name: Start cosign sign (async — device flow)
+    - name: Sign image with cosign
       ansible.builtin.shell:
         cmd: >-
           {{ scan_config.scan_tools.cosign.path }} sign --yes
-          --oidc-device-code
+          --key {{ playbook_dir }}/../{{ scan_config.scan_tools.cosign.key_file }}
           {{ image_digest_ref }}
-          > /tmp/cosign-sign.log 2>&1
-      async: 600
-      poll: 0
-      register: cosign_sign_job
-      when: registry_image != ""
-
-    - name: Wait for sign verification code
-      ansible.builtin.shell:
-        cmd: >-
-          grep -m1 'user_code\|verification code' /tmp/cosign-sign.log
-      register: sign_device_code
-      until: sign_device_code.rc == 0
-      retries: 30
-      delay: 2
-      changed_when: false
-      when: registry_image != ""
-
-    - name: Cosign sign — browser authentication required
-      ansible.builtin.pause:
-        prompt: |
-
-          ═══════════════════════════════════════════════════════════════
-            COSIGN SIGNING — Browser Authentication Required (1/3)
-          ═══════════════════════════════════════════════════════════════
-
-          {{ sign_device_code.stdout }}
-
-          Open the URL in your browser and enter the verification code.
-          Press ENTER here after completing authentication.
-          ═══════════════════════════════════════════════════════════════
-      when: registry_image != ""
-
-    - name: Wait for cosign sign to complete
-      ansible.builtin.async_status:
-        jid: "{{ cosign_sign_job.ansible_job_id }}"
+      environment:
+        COSIGN_PASSWORD: ""
       register: cosign_sign_result
-      until: cosign_sign_result.finished | bool
-      retries: 60
-      delay: 5
-      when: registry_image != ""
-
-    - name: Clean up sign log
-      ansible.builtin.file:
-        path: /tmp/cosign-sign.log
-        state: absent
       when: registry_image != ""
 
     # ── Phase 6: Attach SBOM attestation ─────────────────────────────────
 
-    - name: Start SBOM attestation (async — device flow)
+    - name: Attach SBOM attestation
       ansible.builtin.shell:
         cmd: >-
           {{ scan_config.scan_tools.cosign.path }} attest --yes
-          --oidc-device-code
+          --key {{ playbook_dir }}/../{{ scan_config.scan_tools.cosign.key_file }}
           --predicate {{ syft_sbom.report }}
           --type spdxjson
           {{ image_digest_ref }}
-          > /tmp/cosign-attest-sbom.log 2>&1
-      async: 600
-      poll: 0
-      register: sbom_attest_job
-      when: registry_image != "" and syft_sbom.rc == 0
-
-    - name: Wait for SBOM attestation verification code
-      ansible.builtin.shell:
-        cmd: >-
-          grep -m1 'user_code\|verification code' /tmp/cosign-attest-sbom.log
-      register: sbom_device_code
-      until: sbom_device_code.rc == 0
-      retries: 30
-      delay: 2
-      changed_when: false
-      when: registry_image != "" and syft_sbom.rc == 0
-
-    - name: SBOM attestation — browser authentication required
-      ansible.builtin.pause:
-        prompt: |
-
-          ═══════════════════════════════════════════════════════════════
-            COSIGN SBOM ATTESTATION — Browser Authentication (2/3)
-          ═══════════════════════════════════════════════════════════════
-
-          {{ sbom_device_code.stdout }}
-
-          Open the URL in your browser and enter the verification code.
-          Press ENTER here after completing authentication.
-          ═══════════════════════════════════════════════════════════════
-      when: registry_image != "" and syft_sbom.rc == 0
-
-    - name: Wait for SBOM attestation to complete
-      ansible.builtin.async_status:
-        jid: "{{ sbom_attest_job.ansible_job_id }}"
+      environment:
+        COSIGN_PASSWORD: ""
       register: sbom_attest_result
-      until: sbom_attest_result.finished | bool
-      retries: 60
-      delay: 5
-      when: registry_image != "" and syft_sbom.rc == 0
-
-    - name: Clean up SBOM attestation log
-      ansible.builtin.file:
-        path: /tmp/cosign-attest-sbom.log
-        state: absent
       when: registry_image != "" and syft_sbom.rc == 0
 
     # ── Phase 7: Attach vulnerability scan attestation ───────────────────
 
-    - name: Start vulnerability attestation (async — device flow)
+    - name: Attach vulnerability scan attestation
       ansible.builtin.shell:
         cmd: >-
           {{ scan_config.scan_tools.cosign.path }} attest --yes
-          --oidc-device-code
+          --key {{ playbook_dir }}/../{{ scan_config.scan_tools.cosign.key_file }}
           --predicate {{ trivy_img.report }}
           --type vuln
           {{ image_digest_ref }}
-          > /tmp/cosign-attest-vuln.log 2>&1
-      async: 600
-      poll: 0
-      register: vuln_attest_job
-      when: registry_image != "" and trivy_img.rc == 0
-
-    - name: Wait for vulnerability attestation verification code
-      ansible.builtin.shell:
-        cmd: >-
-          grep -m1 'user_code\|verification code' /tmp/cosign-attest-vuln.log
-      register: vuln_device_code
-      until: vuln_device_code.rc == 0
-      retries: 30
-      delay: 2
-      changed_when: false
-      when: registry_image != "" and trivy_img.rc == 0
-
-    - name: Vulnerability attestation — browser authentication required
-      ansible.builtin.pause:
-        prompt: |
-
-          ═══════════════════════════════════════════════════════════════
-            COSIGN VULN ATTESTATION — Browser Authentication (3/3)
-          ═══════════════════════════════════════════════════════════════
-
-          {{ vuln_device_code.stdout }}
-
-          Open the URL in your browser and enter the verification code.
-          Press ENTER here after completing authentication.
-          ═══════════════════════════════════════════════════════════════
-      when: registry_image != "" and trivy_img.rc == 0
-
-    - name: Wait for vulnerability attestation to complete
-      ansible.builtin.async_status:
-        jid: "{{ vuln_attest_job.ansible_job_id }}"
+      environment:
+        COSIGN_PASSWORD: ""
       register: vuln_attest_result
-      until: vuln_attest_result.finished | bool
-      retries: 60
-      delay: 5
-      when: registry_image != "" and trivy_img.rc == 0
-
-    - name: Clean up vulnerability attestation log
-      ansible.builtin.file:
-        path: /tmp/cosign-attest-vuln.log
-        state: absent
       when: registry_image != "" and trivy_img.rc == 0
 
     # ── Signing summary ──────────────────────────────────────────────────
@@ -593,9 +467,9 @@
           ══════════════════════════════════════════════════════════════════════
 
           Consumers can verify with:
-            cosign verify {{ registry_image }}
-            cosign verify-attestation --type spdxjson {{ registry_image }}
-            cosign verify-attestation --type vuln {{ registry_image }}
+            cosign verify --key cosign.pub {{ registry_image }}
+            cosign verify-attestation --key cosign.pub --type spdxjson {{ registry_image }}
+            cosign verify-attestation --key cosign.pub --type vuln {{ registry_image }}
           ══════════════════════════════════════════════════════════════════════
       when: registry_image != ""
 

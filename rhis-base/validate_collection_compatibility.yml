@@ -20,9 +20,10 @@
   vars:
     target: ""
     config_file: "{{ playbook_dir }}/validate_collections_config.yml"
+    redhat_automation_hub_base_url: "https://console.redhat.com/api/automation-hub"
     galaxy_api_url: "https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/index"
-    ah_published_api_url: "https://console.redhat.com/api/automation-hub/v3/plugin/ansible/content/published/collections/index"
-    ah_validated_api_url: "https://console.redhat.com/api/automation-hub/v3/plugin/ansible/content/validated/collections/index"
+    ah_published_api_url: "{{ redhat_automation_hub_base_url }}/v3/plugin/ansible/content/published/collections/index"
+    ah_validated_api_url: "{{ redhat_automation_hub_base_url }}/v3/plugin/ansible/content/validated/collections/index"
     ah_ansible_cfg: "/etc/ansible/ansible.cfg"
     generate_requirements: false
     output_dir: "{{ playbook_dir }}"

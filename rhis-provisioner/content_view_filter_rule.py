@@ -120,17 +120,17 @@ options:
       - package or module version
     type: str
 extends_documentation_fragment:
-  - theforeman.foreman.foreman
-  - theforeman.foreman.foreman.entity_state
-  - theforeman.foreman.foreman.organization
+  - redhat.satellite.foreman
+  - redhat.satellite.foreman.entity_state
+  - redhat.satellite.foreman.organization
 '''
 
 EXAMPLES = '''
 # the examples assume that the content view filters have been already created
-# e.g. by the theforeman.foreman.content_view_filter module
+# e.g. by the redhat.satellite.content_view_filter module
 
 - name: "Include errata by date"
-  theforeman.foreman.content_view_filter_rule:
+  redhat.satellite.content_view_filter_rule:
     username: "admin"
     password: "changeme"
     server_url: "https://foreman.example.com"
@@ -146,7 +146,7 @@ EXAMPLES = '''
     end_date: "2022-05-25"
 
 - name: "Exclude csh versions 6.20 and older"
-  theforeman.foreman.content_view_filter_rule:
+  redhat.satellite.content_view_filter_rule:
     username: "admin"
     password: "changeme"
     server_url: "https://foreman.example.com"
@@ -157,7 +157,7 @@ EXAMPLES = '''
     max_version: "6.20.00"
 
 - name: "Exclude csh version 6.23 due to example policy"
-  theforeman.foreman.content_view_filter_rule:
+  redhat.satellite.content_view_filter_rule:
     username: "admin"
     password: "changeme"
     server_url: "https://foreman.example.com"
@@ -168,7 +168,7 @@ EXAMPLES = '''
     version: "6.23.00"
 
 - name: "Content View Filter Rule for 389 - fully qualified NSVCA"
-  theforeman.foreman.content_view_filter_rule:
+  redhat.satellite.content_view_filter_rule:
     username: "admin"
     password: "changeme"
     server_url: "https://foreman.example.com"
@@ -183,7 +183,7 @@ EXAMPLES = '''
     state: present
 
 - name: "Exclude all mariadb module streams by name only"
-  theforeman.foreman.content_view_filter_rule:
+  redhat.satellite.content_view_filter_rule:
     username: "admin"
     password: "changeme"
     server_url: "https://foreman.example.com"
@@ -194,7 +194,7 @@ EXAMPLES = '''
     state: present
 
 - name: "Exclude mariadb module streams - fail if not found"
-  theforeman.foreman.content_view_filter_rule:
+  redhat.satellite.content_view_filter_rule:
     username: "admin"
     password: "changeme"
     server_url: "https://foreman.example.com"
@@ -218,7 +218,7 @@ entity:
       elements: dict
 '''
 
-from ansible_collections.theforeman.foreman.plugins.module_utils.foreman_helper import KatelloEntityAnsibleModule
+from ansible_collections.redhat.satellite.plugins.module_utils.foreman_helper import KatelloEntityAnsibleModule
 
 content_filter_rule_erratum_spec = {
     'id': {},

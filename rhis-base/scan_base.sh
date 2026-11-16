@@ -18,6 +18,7 @@ image_name=""
 registry_image=""
 config_file=""
 reports_dir=""
+cosign_method=""
 
 usage() {
     echo "Usage: $0 --phase <pre-build|post-build|all> [OPTIONS]"
@@ -43,6 +44,7 @@ while [[ $# -gt 0 ]]; do
         --registry-image) registry_image="$2"; shift 2 ;;
         --reports-dir)   reports_dir="$2"; shift 2 ;;
         --config)        config_file="$2"; shift 2 ;;
+        --cosign-method) cosign_method="$2"; shift 2 ;;
         -h|--help)       usage ;;
         *)               echo "Unknown option: $1"; usage ;;
     esac
@@ -71,7 +73,8 @@ run_pre_build() {
         -e "os_ver=${osver}" \
         -e "ansible_cfg=${ansiblecfg}" \
         ${reports_dir:+-e "reports_dir=${reports_dir}"} \
-        ${config_file:+-e "config_file=${config_file}"}
+        ${config_file:+-e "config_file=${config_file}"} \
+        ${cosign_method:+-e "cosign_signing_method=${cosign_method}"}
 
     return $?
 }
@@ -90,7 +93,8 @@ run_post_build() {
         -e "image_name=${image_name}" \
         ${registry_image:+-e "registry_image=${registry_image}"} \
         ${reports_dir:+-e "reports_dir=${reports_dir}"} \
-        ${config_file:+-e "config_file=${config_file}"}
+        ${config_file:+-e "config_file=${config_file}"} \
+        ${cosign_method:+-e "cosign_signing_method=${cosign_method}"}
 
     return $?
 }

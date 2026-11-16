@@ -472,7 +472,8 @@ reports_dir="./scan-reports/build-ubi${osver}-${build_timestamp}"
 # ── Pre-build scanning ──────────────────────────────────────────────────
 if [[ "$do_scan" == "true" ]]; then
     echo "Running pre-build lint scan..."
-    ./scan_provisioner.sh --phase pre-build --reports-dir "$reports_dir"
+    ./scan_provisioner.sh --phase pre-build --reports-dir "$reports_dir" \
+        ${cosign_method:+--cosign-method "$cosign_method"}
     if [[ $? -ne 0 ]]; then
         echo "Pre-build lint scan failed. Aborting build."
         exit 3
@@ -522,6 +523,9 @@ if [[ "$do_scan" == "true" ]]; then
     scan_args=(--phase post-build --image "$image_name" --reports-dir "$reports_dir")
     if [[ -n "$registry_image" ]]; then
         scan_args+=(--registry-image "$registry_image")
+    fi
+    if [[ -n "$cosign_method" ]]; then
+        scan_args+=(--cosign-method "$cosign_method")
     fi
     ./scan_provisioner.sh "${scan_args[@]}"
     if [[ $? -ne 0 ]]; then

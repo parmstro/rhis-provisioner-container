@@ -14,6 +14,8 @@ push_registry_repo="parmstro"
 push_registry_login=""
 push_registry_token=""
 
+cosign_method=""
+
 # Source local config if present (not committed to git)
 if [[ -f "../build.local.conf" ]]; then
     source "../build.local.conf"
@@ -63,6 +65,10 @@ while [[ "$#" -gt 0 ]]; do
         --no-scan)
             do_scan="false"
             ;;
+        --cosign-method)
+            cosign_method="$2"
+            shift
+            ;;
         -h|--help)
             echo "Usage: rhis_build_base.sh [options]"
             echo "Options:"
@@ -76,6 +82,7 @@ while [[ "$#" -gt 0 ]]; do
             echo "    --version-mode - increment major, minor, or revision version of the build"
             echo "    --scan - enable security scanning (default: enabled)"
             echo "    --no-scan - skip security scanning for quick dev iterations"
+            echo "    --cosign-method - signing method: 'key' (default) or 'keyless' (Sigstore OIDC device flow)"
             echo ""
             echo "If push-registry values are not provided, only a local build will be created."
             echo "Build always pulls registry.redhat.io/ubi9:latest"
@@ -223,7 +230,8 @@ reports_dir="./scan-reports/build-ubi${osver}-${build_timestamp}"
 # ── Pre-build scanning ──────────────────────────────────────────────────
 if [[ "$do_scan" == "true" ]]; then
     echo "Running pre-build security scan..."
-    ./scan_base.sh --phase pre-build --os-ver "$osver" --ansible-config "$ansiblecfg" --reports-dir "$reports_dir"
+    ./scan_base.sh --phase pre-build --os-ver "$osver" --ansible-config "$ansiblecfg" --reports-dir "$reports_dir" \
+        ${cosign_method:+--cosign-method "$cosign_method"}
     if [[ $? -ne 0 ]]; then
         echo "Pre-build scan failed. Aborting build."
         exit 3
@@ -261,6 +269,9 @@ if [[ "$do_scan" == "true" ]]; then
     scan_args=(--phase post-build --image "$image_name" --reports-dir "$reports_dir")
     if [[ -n "$registry_image" ]]; then
         scan_args+=(--registry-image "$registry_image")
+    fi
+    if [[ -n "$cosign_method" ]]; then
+        scan_args+=(--cosign-method "$cosign_method")
     fi
     ./scan_base.sh "${scan_args[@]}"
     if [[ $? -ne 0 ]]; then

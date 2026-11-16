@@ -407,7 +407,7 @@
 
     - name: Set cosign signing method
       ansible.builtin.set_fact:
-        _cosign_method: "{{ scan_config.scan_tools.cosign.signing_method | default('key') }}"
+        _cosign_method: "{{ cosign_signing_method | default(scan_config.scan_tools.cosign.signing_method) | default('key') }}"
 
     # ── Phase 9a: Key-based signing ──────────────────────────────────────
 

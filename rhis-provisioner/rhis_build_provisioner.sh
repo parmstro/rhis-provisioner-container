@@ -27,6 +27,7 @@ push_registry_repo="parmstro"
 push_registry_login=""
 push_registry_token=""
 
+cosign_method=""
 cosign_key=""
 cosign_pub=""
 cosign_identity=""
@@ -63,8 +64,11 @@ usage() {
             echo "    --scan - enable security scanning (default: enabled)"
             echo "    --no-scan - skip security scanning for quick dev iterations"
             echo ""
-            echo "    --cosign-identity - certificate identity for cosign verify of the base image (e.g. user@example.com)"
-            echo "    --cosign-oidc-issuer - OIDC issuer URL for cosign verify (e.g. https://accounts.google.com)"
+            echo "    --cosign-method - signing method: 'key' (default) or 'keyless' (Sigstore OIDC device flow)"
+            echo "    --cosign-key - path to cosign private key (default: ../cosign.key)"
+            echo "    --cosign-pub - path to cosign public key (default: ../cosign.pub)"
+            echo "    --cosign-identity - certificate identity for cosign keyless verify (e.g. user@example.com)"
+            echo "    --cosign-oidc-issuer - OIDC issuer URL for cosign keyless verify (e.g. https://accounts.google.com)"
             echo "    --skip-verify - skip cosign signature verification of the base image"
             echo "Specifying 'localhost' for either the pull or push registry will ignore the corresponding repo option."
             exit 1
@@ -141,6 +145,18 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         --no-scan)
             do_scan="false"
+            ;;
+        --cosign-method)
+            cosign_method="$2"
+            shift
+            ;;
+        --cosign-key)
+            cosign_key="$2"
+            shift
+            ;;
+        --cosign-pub)
+            cosign_pub="$2"
+            shift
             ;;
         --cosign-identity)
             cosign_identity="$2"
@@ -311,6 +327,7 @@ verify_base_signature() {
     return 0
   fi
 
+  local method="${cosign_method:-key}"
   local pub_file="${cosign_pub:-../cosign.pub}"
 
   {
@@ -319,18 +336,39 @@ verify_base_signature() {
     echo "═══════════════════════════════════════════════════════════════"
     echo "  Timestamp:  $verify_timestamp"
     echo "  Image:      $base_image"
-    echo "  Public key: $pub_file"
+    echo "  Method:     $method"
+    if [[ "$method" == "key" ]]; then
+      echo "  Public key: $pub_file"
+    else
+      echo "  Identity:   ${cosign_identity:-'(any)'}"
+      echo "  Issuer:     ${cosign_oidc_issuer:-'(any)'}"
+    fi
     echo "  Cosign:     $(cosign version 2>/dev/null | grep -oP 'GitVersion:\s+\K\S+' || echo 'unknown')"
     echo "═══════════════════════════════════════════════════════════════"
   } | tee -a "$verify_log"
 
-  if [[ ! -f "$pub_file" ]]; then
-    echo "ERROR: Public key not found at $pub_file" | tee -a "$verify_log"
-    echo "Generate a keypair with: cosign generate-key-pair"
-    return 1
+  local verify_args=("verify")
+
+  if [[ "$method" == "key" ]]; then
+    if [[ ! -f "$pub_file" ]]; then
+      echo "ERROR: Public key not found at $pub_file" | tee -a "$verify_log"
+      echo "Generate a keypair with: cosign generate-key-pair"
+      return 1
+    fi
+    verify_args+=("--key" "$pub_file")
+  else
+    if [[ -n "$cosign_identity" && -n "$cosign_oidc_issuer" ]]; then
+      verify_args+=("--certificate-identity" "$cosign_identity")
+      verify_args+=("--certificate-oidc-issuer" "$cosign_oidc_issuer")
+    elif [[ -n "$cosign_identity" ]]; then
+      verify_args+=("--certificate-identity-regexp" "$cosign_identity")
+    else
+      echo "WARNING: No --cosign-identity provided. Using Sigstore transparency log only." | tee -a "$verify_log"
+      verify_args+=("--certificate-identity-regexp" ".*")
+      verify_args+=("--certificate-oidc-issuer-regexp" ".*")
+    fi
   fi
 
-  local verify_args=("verify" "--key" "$pub_file")
   verify_args+=("$base_image")
 
   local verify_output

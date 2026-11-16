@@ -32,7 +32,7 @@ The build pipeline includes integrated security scanning, CVE risk management, a
 
 - Pre/post-build scanning (Trivy, Grype, Syft, ansible-lint, KICS)
 - Automatic CVE accepted risk reconciliation
-- Cosign key-based signing and signature verification (public key: `cosign.pub`)
+- Cosign signing and verification (key-based default, keyless/Sigstore optional; `cosign.pub`)
 - SBOM generation and attestation
 
 ### Building the containers.

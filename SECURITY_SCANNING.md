@@ -183,13 +183,25 @@ Full accepted list (22 CVEs):
 
 ### Signing (Post-build)
 
-After a successful build and scan, images are signed using **cosign key-based signing**:
+After a successful build and scan, images are signed using cosign. Two methods are available, controlled by `signing_method` in the scan config or `--cosign-method` on the build script:
+
+**Key-based signing** (`--cosign-method key`, default):
 
 1. `cosign sign --key cosign.key` — signs the image digest
 2. `cosign attest --key cosign.key --type spdxjson` — attaches the SBOM as a signed attestation
 3. `cosign attest --key cosign.key --type vuln` — attaches the vulnerability scan as a signed attestation
 
-Signatures are stored in the registry alongside the image as OCI artifacts. Signing is fully automated — no interactive browser authentication required.
+Fully automated — no interactive authentication required.
+
+**Keyless signing** (`--cosign-method keyless`, Sigstore OIDC):
+
+1. `cosign sign --oidc-device-code` — signs via Sigstore device flow (requires browser authentication)
+2. `cosign attest --oidc-device-code --type spdxjson` — SBOM attestation (requires browser authentication)
+3. `cosign attest --oidc-device-code --type vuln` — vulnerability attestation (requires browser authentication)
+
+Three separate browser authentications are required (one per operation). The signer's OIDC identity and issuer are recorded in the Sigstore transparency log.
+
+Signatures are stored in the registry alongside the image as OCI artifacts.
 
 ### Verification
 
@@ -219,14 +231,18 @@ verify_base_signature()
   │
   ├── Skip if --skip-verify or pull_registry=localhost
   ├── Skip with warning if cosign not installed
-  ├── Fail if cosign.pub not found
   │
-  └── cosign verify --key cosign.pub
-        <registry>/<repo>/rhis-base-<os>-<aap>:<version>
+  ├── Key-based (default):
+  │     ├── Fail if cosign.pub not found
+  │     └── cosign verify --key cosign.pub <image>
+  │
+  └── Keyless (--cosign-method keyless):
+        └── cosign verify --certificate-identity <identity>
+              --certificate-oidc-issuer <issuer> <image>
 ```
 
 This ensures:
-- The base image was signed with our private key
+- The base image was signed by a trusted party (our key or a known OIDC identity)
 - The image has not been tampered with since signing
 
 **Failure aborts the build** (exit code 4) before the expensive `podman build` step.

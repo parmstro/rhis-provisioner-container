@@ -24,7 +24,7 @@ scan_tools:
     output_format: "spdx-json"
   cosign:
     path: "cosign"
-    signing_method: "key"
+    signing_method: "key"  # "key" or "keyless" (Sigstore OIDC device flow)
     key_file: "cosign.key"
     pub_file: "cosign.pub"
   ansible_lint:
